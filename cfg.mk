@@ -568,6 +568,14 @@ sc_prohibit_test_empty:
 	halt='use `compare /dev/null ...`, not `test -s ...` in tests/'	\
 	  $(_sc_search_regexp)
 
+# Ensure that expr doesn't work directly on various unsigned int types,
+# as that's not generally supported without GMP.
+sc_prohibit_expr_unsigned:
+	@prohibit='expr .*(UINT|ULONG|[^S]SIZE|[UGP]ID|UINTMAX)'	\
+	halt='avoid passing unsigned limits to `expr` (without GMP)'	\
+	in_vc_files='^tests/'						\
+	  $(_sc_search_regexp)
+
 # Programs like sort, ls, expr use PROG_FAILURE in place of EXIT_FAILURE.
 # Others, use the EXIT_CANCELED, EXIT_ENOENT, etc. macros defined in system.h.
 # In those programs, ensure that EXIT_FAILURE is not used by mistake.
@@ -714,15 +722,22 @@ sc_THANKS_in_duplicates:
 	    && { echo '$(ME): remove the above names from THANKS.in'	\
 		  1>&2; exit 1; } || :
 
-# Ensure the contributor list stays sorted.  Use our sort as other
-# implementations may result in a different order.
-sc_THANKS_in_sorted:  src/sort
-	@sed '/^$$/,/^$$/!d;/^$$/d' $(srcdir)/THANKS.in > $@.1;		\
-	LC_ALL=en_US.UTF-8 src/sort -f -k1,1 $@.1 > $@.2
-	@diff -u $@.1 $@.2; diff=$$?;					\
-	rm -f $@.1 $@.2;						\
-	test "$$diff" = 0						\
-	  || { echo '$(ME): THANKS.in is unsorted' 1>&2; exit 1; }
+# Ensure the contributor list stays sorted.  However, if the system's
+# en_US.UTF-8 locale data is erroneous, give a diagnostic and skip
+# this test.  This affects OS X, up to at least 10.11.6.
+# Use our sort as other implementations may result in a different order.
+sc_THANKS_in_sorted:
+	@printf 'a\n.b\n'|LC_ALL=en_US.UTF-8 src/sort -c 2> /dev/null	\
+	  && {								\
+	    sed '/^$$/,/^$$/!d;/^$$/d' $(srcdir)/THANKS.in > $@.1 &&	\
+	    LC_ALL=en_US.UTF-8 src/sort -f -k1,1 $@.1 > $@.2 &&		\
+	    diff -u $@.1 $@.2; diff=$$?;				\
+	    rm -f $@.1 $@.2;						\
+	    test "$$diff" = 0						\
+	      || { echo '$(ME): THANKS.in is unsorted' 1>&2; exit 1; };	\
+	    }								\
+	  || { echo '$(ME): this system has erroneous locale data;'	\
+		    'skipping $@' 1>&2; }
 
 # Look for developer diagnostics that are marked for translation.
 # This won't find any for which devmsg's format string is on a separate line.

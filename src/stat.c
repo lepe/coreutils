@@ -364,6 +364,8 @@ human_fstype (STRUCT_STATVFS const *statfsbuf)
       return "logfs";
     case S_MAGIC_LUSTRE: /* 0x0BD00BD0 remote */
       return "lustre";
+    case S_MAGIC_M1FS: /* 0x5346314D local */
+      return "m1fs";
     case S_MAGIC_MINIX: /* 0x137F local */
       return "minix";
     case S_MAGIC_MINIX_30: /* 0x138F local */
@@ -403,9 +405,11 @@ human_fstype (STRUCT_STATVFS const *statfsbuf)
       return "panfs";
     case S_MAGIC_PIPEFS: /* 0x50495045 remote */
       /* FIXME: change syntax or add an optional attribute like "inotify:no".
-         The above is labeled as "remote" so that tail always uses polling,
-         but this isn't really a remote file system type.  */
+         pipefs and prlfs are labeled as "remote" so that tail always polls,
+         but these aren't really remote file system types.  */
       return "pipefs";
+    case S_MAGIC_PRL_FS: /* 0x7C7C6673 remote */
+      return "prl_fs";
     case S_MAGIC_PROC: /* 0x9FA0 local */
       return "proc";
     case S_MAGIC_PSTOREFS: /* 0x6165676C local */
@@ -430,6 +434,8 @@ human_fstype (STRUCT_STATVFS const *statfsbuf)
       return "smackfs";
     case S_MAGIC_SMB: /* 0x517B remote */
       return "smb";
+    case S_MAGIC_SMB2: /* 0xFE534D42 remote */
+      return "smb2";
     case S_MAGIC_SNFS: /* 0xBEEFDEAD remote */
       return "snfs";
     case S_MAGIC_SOCKFS: /* 0x534F434B local */
@@ -466,6 +472,8 @@ human_fstype (STRUCT_STATVFS const *statfsbuf)
       return "vxfs";
     case S_MAGIC_VZFS: /* 0x565A4653 local */
       return "vzfs";
+    case S_MAGIC_WSLFS: /* 0x53464846 local */
+      return "wslfs";
     case S_MAGIC_XENFS: /* 0xABBA1974 local */
       return "xenfs";
     case S_MAGIC_XENIX: /* 0x012FF7B4 local */

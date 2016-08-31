@@ -27,10 +27,13 @@
 #include "quote.h"
 #include "xstrtod.h"
 
-/* Roll our own isfinite rather than using <math.h>, so that we don't
+/* Roll our own isfinite/isnan rather than using <math.h>, so that we don't
    have to worry about linking -lm just for isfinite.  */
 #ifndef isfinite
 # define isfinite(x) ((x) * 0 == 0)
+#endif
+#ifndef isnan
+# define isnan(x) ((x) != (x))
 #endif
 
 /* The official name of this program (e.g., no 'g' prefix).  */
@@ -92,6 +95,7 @@ INCREMENT would become greater than LAST.\n\
 FIRST, INCREMENT, and LAST are interpreted as floating point values.\n\
 INCREMENT is usually positive if FIRST is smaller than LAST, and\n\
 INCREMENT is usually negative if FIRST is greater than LAST.\n\
+INCREMENT must not be 0; none of FIRST, INCREMENT and LAST may be NaN.\n\
 "), stdout);
       fputs (_("\
 FORMAT must be suitable for printing one argument of type 'double';\n\
@@ -140,6 +144,13 @@ scan_arg (const char *arg)
   if (! xstrtold (arg, NULL, &ret.value, c_strtold))
     {
       error (0, 0, _("invalid floating point argument: %s"), quote (arg));
+      usage (EXIT_FAILURE);
+    }
+
+  if (isnan (ret.value))
+    {
+      error (0, 0, _("invalid %s argument: %s"), quote_n (0, "not-a-number"),
+             quote_n (1, arg));
       usage (EXIT_FAILURE);
     }
 
@@ -267,6 +278,15 @@ long_double_format (char const *fmt, struct layout *layout)
       }
 }
 
+static void ATTRIBUTE_NORETURN
+io_error (void)
+{
+  /* FIXME: consider option to silently ignore errno=EPIPE */
+  error (0, errno, _("standard output"));
+  clearerr (stdout);
+  exit (EXIT_FAILURE);
+}
+
 /* Actually print the sequence of numbers in the specified range, with the
    given or default stepping and format.  */
 
@@ -284,7 +304,8 @@ print_numbers (char const *fmt, struct layout layout,
       for (i = 1; ; i++)
         {
           long double x0 = x;
-          printf (fmt, x);
+          if (printf (fmt, x) < 0)
+            io_error ();
           if (out_of_range)
             break;
           x = first + i * step;
@@ -325,10 +346,12 @@ print_numbers (char const *fmt, struct layout layout,
                 break;
             }
 
-          fputs (separator, stdout);
+          if (fputs (separator, stdout) == EOF)
+            io_error ();
         }
 
-      fputs (terminator, stdout);
+      if (fputs (terminator, stdout) == EOF)
+        io_error ();
     }
 }
 
@@ -495,14 +518,16 @@ seq_fast (char const *a, char const *b)
              output buffer so far, and reset to start of buffer.  */
           if (buf_end - (p_len + 1) < bufp)
             {
-              fwrite (buf, bufp - buf, 1, stdout);
+              if (fwrite (buf, bufp - buf, 1, stdout) != 1)
+                io_error ();
               bufp = buf;
             }
         }
 
       /* Write any remaining buffered output, and the terminator.  */
       *bufp++ = *terminator;
-      fwrite (buf, bufp - buf, 1, stdout);
+      if (fwrite (buf, bufp - buf, 1, stdout) != 1)
+        io_error ();
 
       IF_LINT (free (buf));
     }
@@ -635,6 +660,13 @@ main (int argc, char **argv)
       if (optind < argc)
         {
           step = last;
+          if (step.value == 0)
+            {
+              error (0, 0, _("invalid Zero increment value: %s"),
+                     quote (argv[optind-1]));
+              usage (EXIT_FAILURE);
+            }
+
           last = scan_arg (argv[optind++]);
         }
     }

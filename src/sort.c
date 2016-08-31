@@ -1885,6 +1885,53 @@ static char const unit_order[UCHAR_LIM] =
 #endif
   };
 
+/* Traverse number given as *number consisting of digits, thousands_sep, and
+   decimal_point chars only.  Returns the highest digit found in the number,
+   or '\0' if no digit has been found.  Upon return *number points at the
+   character that immediately follows after the given number.  */
+static unsigned char
+traverse_raw_number (char const **number)
+{
+  char const *p = *number;
+  unsigned char ch;
+  unsigned char max_digit = '\0';
+  bool ends_with_thousands_sep = false;
+
+  /* Scan to end of number.
+     Decimals or separators not followed by digits stop the scan.
+     Numbers ending in decimals or separators are thus considered
+     to be lacking in units.
+     FIXME: add support for multibyte thousands_sep and decimal_point.  */
+
+  while (ISDIGIT (ch = *p++))
+    {
+      if (max_digit < ch)
+        max_digit = ch;
+
+      /* Allow to skip only one occurrence of thousands_sep to avoid finding
+         the unit in the next column in case thousands_sep matches as blank
+         and is used as column delimiter.  */
+      ends_with_thousands_sep = (*p == thousands_sep);
+      if (ends_with_thousands_sep)
+        ++p;
+    }
+
+  if (ends_with_thousands_sep)
+    {
+      /* thousands_sep not followed by digit is not allowed.  */
+      *number = p - 2;
+      return max_digit;
+    }
+
+  if (ch == decimal_point)
+    while (ISDIGIT (ch = *p++))
+      if (max_digit < ch)
+        max_digit = ch;
+
+  *number = p - 1;
+  return max_digit;
+}
+
 /* Return an integer that represents the order of magnitude of the
    unit following the number.  The number may contain thousands
    separators and a decimal point, but it may not contain leading blanks.
@@ -1895,28 +1942,10 @@ find_unit_order (char const *number)
 {
   bool minus_sign = (*number == '-');
   char const *p = number + minus_sign;
-  int nonzero = 0;
-  unsigned char ch;
-
-  /* Scan to end of number.
-     Decimals or separators not followed by digits stop the scan.
-     Numbers ending in decimals or separators are thus considered
-     to be lacking in units.
-     FIXME: add support for multibyte thousands_sep and decimal_point.  */
-
-  do
+  unsigned char max_digit = traverse_raw_number (&p);
+  if ('0' < max_digit)
     {
-      while (ISDIGIT (ch = *p++))
-        nonzero |= ch - '0';
-    }
-  while (ch == thousands_sep);
-
-  if (ch == decimal_point)
-    while (ISDIGIT (ch = *p++))
-      nonzero |= ch - '0';
-
-  if (nonzero)
-    {
+      unsigned char ch = *p;
       int order = unit_order[ch];
       return (minus_sign ? -order : order);
     }
@@ -2293,23 +2322,14 @@ debug_key (struct line const *line, struct keyfield const *key)
             ignore_value (strtold (beg, &tighter_lim));
           else if (key->numeric || key->human_numeric)
             {
-              char *p = beg + (beg < lim && *beg == '-');
-              bool found_digit = false;
-              unsigned char ch;
-
-              do
+              char const *p = beg + (beg < lim && *beg == '-');
+              unsigned char max_digit = traverse_raw_number (&p);
+              if ('0' <= max_digit)
                 {
-                  while (ISDIGIT (ch = *p++))
-                    found_digit = true;
+                  unsigned char ch = *p;
+                  tighter_lim = (char *) p
+                    + (key->human_numeric && unit_order[ch]);
                 }
-              while (ch == thousands_sep);
-
-              if (ch == decimal_point)
-                while (ISDIGIT (ch = *p++))
-                  found_digit = true;
-
-              if (found_digit)
-                tighter_lim = p - ! (key->human_numeric && unit_order[ch]);
             }
           else
             tighter_lim = lim;
@@ -2424,16 +2444,15 @@ key_warnings (struct keyfield const *gkey, bool gkey_only)
         }
 
       /* Warn about field specs that will never match.  */
-      if (key->sword != SIZE_MAX && key->eword < key->sword)
+      bool zero_width = key->sword != SIZE_MAX && key->eword < key->sword;
+      if (zero_width)
         error (0, 0, _("key %lu has zero width and will be ignored"), keynum);
 
       /* Warn about significant leading blanks.  */
       bool implicit_skip = key_numeric (key) || key->month;
-      bool maybe_space_aligned = !hard_LC_COLLATE && default_key_compare (key)
-                                 && !(key->schar || key->echar);
       bool line_offset = key->eword == 0 && key->echar != 0; /* -k1.x,1.y  */
-      if (!gkey_only && tab == TAB_DEFAULT && !line_offset
-          && ((!key->skipsblanks && !(implicit_skip || maybe_space_aligned))
+      if (!zero_width && !gkey_only && tab == TAB_DEFAULT && !line_offset
+          && ((!key->skipsblanks && !implicit_skip)
               || (!key->skipsblanks && key->schar)
               || (!key->skipeblanks && key->echar)))
         error (0, 0, _("leading blanks are significant in key %lu; "
