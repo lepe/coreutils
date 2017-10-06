@@ -1,5 +1,5 @@
 /* env - run a program in a modified environment
-   Copyright (C) 1986-2016 Free Software Foundation, Inc.
+   Copyright (C) 1986-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Richard Mlynarik and David MacKenzie */
 
@@ -22,6 +22,7 @@
 #include <getopt.h>
 
 #include "system.h"
+#include "die.h"
 #include "error.h"
 #include "quote.h"
 
@@ -37,6 +38,7 @@ static struct option const longopts[] =
   {"ignore-environment", no_argument, NULL, 'i'},
   {"null", no_argument, NULL, '0'},
   {"unset", required_argument, NULL, 'u'},
+  {"chdir", required_argument, NULL, 'C'},
   {GETOPT_HELP_OPTION_DECL},
   {GETOPT_VERSION_OPTION_DECL},
   {NULL, 0, NULL, 0}
@@ -63,6 +65,9 @@ Set each NAME to VALUE in the environment and run COMMAND.\n\
   -0, --null           end each output line with NUL, not newline\n\
   -u, --unset=NAME     remove variable from the environment\n\
 "), stdout);
+      fputs (_("\
+  -C, --chdir=DIR      change working directory to DIR\n\
+"), stdout);
       fputs (HELP_OPTION_DESCRIPTION, stdout);
       fputs (VERSION_OPTION_DESCRIPTION, stdout);
       fputs (_("\
@@ -80,6 +85,7 @@ main (int argc, char **argv)
   int optc;
   bool ignore_environment = false;
   bool opt_nul_terminate_output = false;
+  char const *newdir = NULL;
 
   initialize_main (&argc, &argv);
   set_program_name (argv[0]);
@@ -90,7 +96,7 @@ main (int argc, char **argv)
   initialize_exit_failure (EXIT_CANCELED);
   atexit (close_stdout);
 
-  while ((optc = getopt_long (argc, argv, "+iu:0", longopts, NULL)) != -1)
+  while ((optc = getopt_long (argc, argv, "+C:iu:0", longopts, NULL)) != -1)
     {
       switch (optc)
         {
@@ -101,6 +107,9 @@ main (int argc, char **argv)
           break;
         case '0':
           opt_nul_terminate_output = true;
+          break;
+        case 'C':
+          newdir = optarg;
           break;
         case_GETOPT_HELP_CHAR;
         case_GETOPT_VERSION_CHAR (PROGRAM_NAME, AUTHORS);
@@ -119,9 +128,9 @@ main (int argc, char **argv)
     }
 
   optind = 0;			/* Force GNU getopt to re-initialize. */
-  while ((optc = getopt_long (argc, argv, "+iu:0", longopts, NULL)) != -1)
+  while ((optc = getopt_long (argc, argv, "+C:iu:0", longopts, NULL)) != -1)
     if (optc == 'u' && unsetenv (optarg))
-      error (EXIT_CANCELED, errno, _("cannot unset %s"), quote (optarg));
+      die (EXIT_CANCELED, errno, _("cannot unset %s"), quote (optarg));
 
   if (optind < argc && STREQ (argv[optind], "-"))
     ++optind;
@@ -132,25 +141,40 @@ main (int argc, char **argv)
       if (putenv (argv[optind]))
         {
           *eq = '\0';
-          error (EXIT_CANCELED, errno, _("cannot set %s"),
-                 quote (argv[optind]));
+          die (EXIT_CANCELED, errno, _("cannot set %s"),
+               quote (argv[optind]));
         }
       optind++;
     }
 
-  /* If no program is specified, print the environment and exit. */
-  if (argc <= optind)
+  bool program_specified = optind < argc;
+
+  if (opt_nul_terminate_output && program_specified)
     {
+      error (0, 0, _("cannot specify --null (-0) with command"));
+      usage (EXIT_CANCELED);
+    }
+
+  if (newdir && ! program_specified)
+    {
+      error (0, 0, _("must specify command with --chdir (-C)"));
+      usage (EXIT_CANCELED);
+    }
+
+  if (! program_specified)
+    {
+      /* Print the environment and exit. */
       char *const *e = environ;
       while (*e)
         printf ("%s%c", *e++, opt_nul_terminate_output ? '\0' : '\n');
       return EXIT_SUCCESS;
     }
 
-  if (opt_nul_terminate_output)
+  if (newdir)
     {
-      error (0, errno, _("cannot specify --null (-0) with command"));
-      usage (EXIT_CANCELED);
+      if (chdir (newdir) != 0)
+        die (EXIT_CANCELED, errno, _("cannot change directory to %s"),
+             quoteaf (newdir));
     }
 
   execvp (argv[optind], &argv[optind]);

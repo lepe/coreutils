@@ -1,5 +1,5 @@
 /* du -- summarize disk usage
-   Copyright (C) 1988-2016 Free Software Foundation, Inc.
+   Copyright (C) 1988-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Differences from the Unix du:
    * Doesn't simply ignore the names of regular files given as arguments
@@ -31,6 +31,7 @@
 #include "argmatch.h"
 #include "argv-iter.h"
 #include "di-set.h"
+#include "die.h"
 #include "error.h"
 #include "exclude.h"
 #include "fprintftime.h"
@@ -49,7 +50,7 @@ extern bool fts_debug;
 #define PROGRAM_NAME "du"
 
 #define AUTHORS \
-  proper_name_utf8 ("Torbjorn Granlund", "Torbj\303\266rn Granlund"), \
+  proper_name ("Torbjorn Granlund"), \
   proper_name ("David MacKenzie"), \
   proper_name ("Paul Eggert"), \
   proper_name ("Jim Meyering")
@@ -80,8 +81,8 @@ struct duinfo
   /* Number of inodes in directory.  */
   uintmax_t inodes;
 
-  /* Latest time stamp found.  If tmax.tv_sec == TYPE_MINIMUM (time_t)
-     && tmax.tv_nsec < 0, no time stamp has been found.  */
+  /* Latest timestamp found.  If tmax.tv_sec == TYPE_MINIMUM (time_t)
+     && tmax.tv_nsec < 0, no timestamp has been found.  */
   struct timespec tmax;
 };
 
@@ -254,8 +255,8 @@ static enum time_type const time_types[] =
 ARGMATCH_VERIFY (time_args, time_types);
 
 /* 'full-iso' uses full ISO-style dates and times.  'long-iso' uses longer
-   ISO-style time stamps, though shorter than 'full-iso'.  'iso' uses shorter
-   ISO-style time stamps.  */
+   ISO-style timestamps, though shorter than 'full-iso'.  'iso' uses shorter
+   ISO-style timestamps.  */
 enum time_style
   {
     full_iso_time_style,       /* --time-style=full-iso */
@@ -612,7 +613,6 @@ process_file (FTS *fts, FTSENT *ent)
              Clear the accumulators for *all* levels between prev_level
              and the current one.  The depth may change dramatically,
              e.g., from 1 to 10.  */
-          size_t i;
 
           if (n_alloc <= level)
             {
@@ -620,7 +620,7 @@ process_file (FTS *fts, FTSENT *ent)
               n_alloc = level * 2;
             }
 
-          for (i = prev_level + 1; i <= level; i++)
+          for (size_t i = prev_level + 1; i <= level; i++)
             {
               duinfo_init (&dulvl[i].ent);
               duinfo_init (&dulvl[i].subdir);
@@ -845,7 +845,7 @@ main (int argc, char **argv)
             if (opt_threshold == 0 && *optarg == '-')
               {
                 /* Do not allow -0, as this wouldn't make sense anyway.  */
-                error (EXIT_FAILURE, 0, _("invalid --threshold argument '-0'"));
+                die (EXIT_FAILURE, 0, _("invalid --threshold argument '-0'"));
               }
           }
           break;
@@ -1022,8 +1022,8 @@ main (int argc, char **argv)
         }
 
       if (! (STREQ (files_from, "-") || freopen (files_from, "r", stdin)))
-        error (EXIT_FAILURE, errno, _("cannot open %s for reading"),
-               quoteaf (files_from));
+        die (EXIT_FAILURE, errno, _("cannot open %s for reading"),
+             quoteaf (files_from));
 
       ai = argv_iter_init_stream (stdin);
 
@@ -1130,7 +1130,7 @@ main (int argc, char **argv)
     di_set_free (di_mnt);
 
   if (files_from && (ferror (stdin) || fclose (stdin) != 0) && ok)
-    error (EXIT_FAILURE, 0, _("error reading %s"), quoteaf (files_from));
+    die (EXIT_FAILURE, 0, _("error reading %s"), quoteaf (files_from));
 
   if (print_grand_total)
     print_size (&tot_dui, _("total"));

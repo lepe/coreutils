@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in -*-Makefile-*-.
 
-## Copyright (C) 2007-2016 Free Software Foundation, Inc.
+## Copyright (C) 2007-2017 Free Software Foundation, Inc.
 
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 ## GNU General Public License for more details.
 
 ## You should have received a copy of the GNU General Public License
-## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+## along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Indirections required so that we'll still be able to know the
 # complete list of our tests even if the user overrides TESTS
@@ -176,6 +176,8 @@ all_tests =					\
   tests/tail-2/descriptor-vs-rename.sh		\
   tests/tail-2/inotify-rotate.sh		\
   tests/tail-2/inotify-rotate-resources.sh	\
+  tests/tail-2/inotify-dir-recreate.sh		\
+  tests/tail-2/inotify-only-regular.sh		\
   tests/chmod/no-x.sh				\
   tests/chgrp/basic.sh				\
   tests/rm/dangling-symlink.sh			\
@@ -248,6 +250,7 @@ all_tests =					\
   tests/misc/date-next-dow.pl			\
   tests/misc/ptx-overrun.sh			\
   tests/misc/xstrtol.pl				\
+  tests/tail-2/overlay-headers.sh		\
   tests/tail-2/pid.sh				\
   tests/misc/od.pl				\
   tests/misc/od-endian.sh			\
@@ -279,22 +282,27 @@ all_tests =					\
   tests/misc/csplit-heap.sh			\
   tests/misc/csplit-io-err.sh			\
   tests/misc/csplit-suppress-matched.pl		\
+  tests/misc/date-debug.sh			\
   tests/misc/date-sec.sh			\
+  tests/misc/date-tz.sh				\
   tests/misc/dircolors.pl			\
   tests/misc/dirname.pl				\
   tests/misc/env-null.sh			\
   tests/misc/expand.pl				\
   tests/misc/expr.pl				\
+  tests/misc/expr-multibyte.pl			\
   tests/misc/factor.pl				\
   tests/misc/factor-parallel.sh			\
   tests/misc/false-status.sh			\
   tests/misc/fold.pl				\
   tests/misc/groups-dash.sh			\
+  tests/misc/groups-process-all.sh		\
   tests/misc/groups-version.sh			\
   tests/misc/head-c.sh				\
   tests/misc/head-pos.sh			\
   tests/misc/head-write-error.sh		\
   tests/misc/kill.sh				\
+  tests/misc/b2sum.sh				\
   tests/misc/md5sum.pl				\
   tests/misc/md5sum-bsd.sh			\
   tests/misc/md5sum-newline.pl			\
@@ -306,6 +314,7 @@ all_tests =					\
   tests/misc/nohup.sh				\
   tests/misc/nproc-avail.sh			\
   tests/misc/nproc-positive.sh			\
+  tests/misc/nproc-override.sh			\
   tests/misc/numfmt.pl				\
   tests/misc/od-N.sh				\
   tests/misc/od-j.sh				\
@@ -411,6 +420,7 @@ all_tests =					\
   tests/misc/truncate-parameters.sh		\
   tests/misc/truncate-relative.sh		\
   tests/misc/tsort.pl				\
+  tests/misc/tty.sh				\
   tests/misc/unexpand.pl			\
   tests/misc/uniq.pl				\
   tests/misc/uniq-perf.sh			\
@@ -582,6 +592,7 @@ all_tests =					\
   tests/ls/no-arg.sh				\
   tests/ls/no-cap.sh				\
   tests/ls/proc-selinux-segfault.sh		\
+  tests/ls/quote-align.sh			\
   tests/ls/readdir-mountpoint-inode.sh		\
   tests/ls/recursive.sh				\
   tests/ls/root-rel-symlink-color.sh		\
@@ -592,9 +603,11 @@ all_tests =					\
   tests/ls/stat-free-color.sh			\
   tests/ls/stat-free-symlinks.sh		\
   tests/ls/stat-vs-dirent.sh			\
+  tests/ls/symlink-quote.sh			\
   tests/ls/symlink-slash.sh			\
   tests/ls/time-style-diag.sh			\
   tests/ls/x-option.sh				\
+  tests/ls/hyperlink.sh				\
   tests/mkdir/p-1.sh				\
   tests/mkdir/p-2.sh				\
   tests/mkdir/p-3.sh				\

@@ -1,5 +1,5 @@
 /* GNU's uptime.
-   Copyright (C) 1992-2016 Free Software Foundation, Inc.
+   Copyright (C) 1992-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Created by hacking who.c by Kaveh Ghazi ghazi@caip.rutgers.edu.  */
 
@@ -32,6 +32,7 @@
 #endif
 
 #include "c-strtod.h"
+#include "die.h"
 #include "error.h"
 #include "long-options.h"
 #include "quote.h"
@@ -122,7 +123,7 @@ print_uptime (size_t n, const STRUCT_UTMP *this)
 #endif
     {
       if (boot_time == 0)
-        error (EXIT_FAILURE, errno, _("couldn't get boot time"));
+        die (EXIT_FAILURE, errno, _("couldn't get boot time"));
       uptime = time_now - boot_time;
     }
   updays = uptime / 86400;
@@ -133,7 +134,7 @@ print_uptime (size_t n, const STRUCT_UTMP *this)
      previous versions of coreutils don't. */
   if (tmn)
     /* TRANSLATORS: This prints the current clock time. */
-    fprintftime (stdout, _(" %H:%M%P  "), tmn, 0, 0);
+    fprintftime (stdout, _(" %H:%M:%S  "), tmn, 0, 0);
   else
     printf (_(" ??:????  "));
   if (uptime == (time_t) -1)
@@ -180,7 +181,7 @@ uptime (const char *filename, int options)
 
 #if HAVE_UTMPX_H || HAVE_UTMP_H
   if (read_utmp (filename, &n_users, &utmp_buf, options) != 0)
-    error (EXIT_FAILURE, errno, "%s", quotef (filename));
+    die (EXIT_FAILURE, errno, "%s", quotef (filename));
 #endif
 
   print_uptime (n_users, utmp_buf);

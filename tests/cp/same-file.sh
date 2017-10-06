@@ -2,7 +2,7 @@
 # Test some of cp's options and how cp handles situations in
 # which a naive implementation might overwrite the source file.
 
-# Copyright (C) 1998-2016 Free Software Foundation, Inc.
+# Copyright (C) 1998-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ cp
@@ -142,7 +142,7 @@ cat <<\EOF | sed "$remove_these_sed" > expected
 0 -bf (foo symlink symlink.~1~ -> foo)
 0 -bdf (foo symlink symlink.~1~ -> foo)
 1 -l [cp: cannot create hard link 'symlink' to 'foo'] (foo symlink -> foo)
-0 -dl (foo symlink -> foo)
+1 -dl [cp: cannot create hard link 'symlink' to 'foo'] (foo symlink -> foo)
 0 -fl (foo symlink)
 0 -dfl (foo symlink)
 0 -bl (foo symlink symlink.~1~ -> foo)

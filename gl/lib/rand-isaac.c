@@ -1,6 +1,6 @@
 /* Bob Jenkins's cryptographic random number generators, ISAAC and ISAAC64.
 
-   Copyright (C) 1999-2016 Free Software Foundation, Inc.
+   Copyright (C) 1999-2017 Free Software Foundation, Inc.
    Copyright (C) 1997, 1998, 1999 Colin Plumb.
 
    This program is free software: you can redistribute it and/or modify
@@ -14,7 +14,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
    Written by Colin Plumb and Paul Eggert.  */
 
@@ -40,20 +40,13 @@
 /* If the platform supports unaligned access,
    then don't have -fsanitize=undefined warn about it.  */
 #undef ATTRIBUTE_NO_WARN_SANITIZE_UNDEFINED
-#if !_STRING_ARCH_unaligned \
+#if !(_STRING_ARCH_unaligned || _STRING_INLINE_unaligned) \
     || __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 9)
 # define ATTRIBUTE_NO_WARN_SANITIZE_UNDEFINED /* empty */
 #else
 # define ATTRIBUTE_NO_WARN_SANITIZE_UNDEFINED \
   __attribute__ ((__no_sanitize_undefined__))
 #endif
-
-/* The minimum of two sizes A and B.  */
-static inline size_t
-min (size_t a, size_t b)
-{
-  return (a < b ? a : b);
-}
 
 /* A if 32-bit ISAAC, B if 64-bit.  This is a macro, not an inline
    function, to prevent undefined behavior if the unused argument

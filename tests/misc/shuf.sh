@@ -1,7 +1,7 @@
 #!/bin/sh
 # Ensure that shuf randomizes its input.
 
-# Copyright (C) 2006-2016 Free Software Foundation, Inc.
+# Copyright (C) 2006-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ shuf
@@ -165,5 +165,10 @@ printf "A\nB\nC\nD\nE\n" | shuf --rep -n0 > exp || framework_failure_
 # file size should be zero (no output from shuf)
 test \! -s exp ||
   { fail=1; echo "--repeat,STDIN,-n0 produced bad output">&2 ; }
+
+# shuf 8.25 mishandles input if stdin is closed, due to glibc bug#15589.
+# See coreutils bug#25029.
+shuf /dev/null <&- >out || fail=1
+compare /dev/null out || fail=1
 
 Exit $fail

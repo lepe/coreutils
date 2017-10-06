@@ -1,5 +1,5 @@
 # Customize maint.mk                           -*- makefile -*-
-# Copyright (C) 2003-2016 Free Software Foundation, Inc.
+# Copyright (C) 2003-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,14 +12,17 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Used in maint.mk's web-manual rule
 manual_title = Core GNU utilities
 
 # Use the direct link.  This is guaranteed to work immediately, while
 # it can take a while for the faster mirror links to become usable.
-url_dir_list = http://ftp.gnu.org/gnu/$(PACKAGE)
+url_dir_list = https://ftp.gnu.org/gnu/$(PACKAGE)
+
+# Exclude bundled external projects from syntax checks
+VC_LIST_ALWAYS_EXCLUDE_REGEX = src/blake2/.*$$
 
 # Tests not to run as part of "make distcheck".
 local-checks-to-skip = \
@@ -45,7 +48,7 @@ export VERBOSE = yes
 # 4914152 9e
 export XZ_OPT = -8e
 
-old_NEWS_hash = 4cdc662ed636425161a383b9aa85b2eb
+old_NEWS_hash = 8c2a749f657a6bd541e8b9c5227fe26f
 
 # Add an exemption for sc_makefile_at_at_check.
 _makefile_at_at_check_exceptions = ' && !/^cu_install_prog/ && !/dynamic-dep/'
@@ -226,6 +229,16 @@ sc_error_shell_always_quotes:
 	       exit 1; }  \
 	  || :
 
+# Usage of error() with an exit constant, should instead use die(),
+# as that avoids warnings and may generate better code, due to being apparent
+# to the compiler that it doesn't return.
+sc_die_EXIT_FAILURE:
+	@cd $(srcdir)/src && GIT_PAGER= git grep -E \
+	    'error \(.*_(FAILURE|INVALID)' \
+	  && { echo '$(ME): '"Use die() instead of error" 1>&2; \
+	       exit 1; }  \
+	  || :
+
 # Avoid unstyled quoting to internal slots and thus destined for diagnostics
 # as that can leak unescaped control characters to the output, when using
 # the default "literal" quoting style.
@@ -251,7 +264,7 @@ au_dotdot = authors-dotdot
 au_actual = authors-actual
 sc_check-AUTHORS: $(all_programs)
 	@locale=en_US.UTF-8;				\
-	LC_ALL=$$locale ./src/cat --version		\
+	LC_ALL=$$locale ./src/factor --version		\
 	    | grep ' Torbjorn '	> /dev/null		\
 	  && { echo "$@: skipping this check"; exit 0; }; \
 	rm -f $(au_actual) $(au_dotdot);		\
@@ -307,11 +320,12 @@ sc_prohibit-gl-attributes:
 	  $(_sc_search_regexp)
 
 # Look for lines longer than 80 characters, except omit:
-# - program-generated long lines in diff headers,
+# - urls
 # - the help2man script copied from upstream,
 # - tests involving long checksum lines, and
 # - the 'pr' test cases.
 FILTER_LONG_LINES =						\
+  \|^[^:]*NEWS:.*https\{,1\}://| d;					\
   \|^[^:]*man/help2man:| d;					\
   \|^[^:]*tests/misc/sha[0-9]*sum.*\.pl[-:]| d;			\
   \|^[^:]*tests/pr/|{ \|^[^:]*tests/pr/pr-tests:| !d; };
@@ -424,14 +438,14 @@ sc_prohibit_stat_macro_address:
 	  $(_sc_search_regexp)
 
 # Ensure that date's --help output stays in sync with the info
-# documentation for GNU strftime.  The only exception is %N,
+# documentation for GNU strftime.  The only exception is %N and %q,
 # which date accepts but GNU strftime does not.
 extract_char = sed 's/^[^%][^%]*%\(.\).*/\1/'
 sc_strftime_check:
 	@if test -f $(srcdir)/src/date.c; then				\
 	  grep '^  %.  ' $(srcdir)/src/date.c | sort			\
 	    | $(extract_char) > $@-src;					\
-	  { echo N;							\
+	  { echo N; echo q;						\
 	    info libc date calendar format 2>/dev/null			\
 	      | grep "^ *['\`]%.'$$"| $(extract_char); }| sort >$@-info;\
 	  if test $$(stat --format %s $@-info) != 2; then		\
@@ -492,8 +506,17 @@ sc_prohibit_fail_0:
 # independently check its contents and thus detect any crash messages.
 sc_prohibit_and_fail_1:
 	@prohibit='&& fail=1'						\
-	exclude='(stat|kill|test |EGREP|grep|compare|2> *[^/])'		\
+	exclude='(returns_|stat|kill|test |EGREP|grep|compare|2> *[^/])' \
 	halt='&& fail=1 detected. Please use: returns_ 1 ... || fail=1'	\
+	in_vc_files='^tests/'						\
+	  $(_sc_search_regexp)
+
+# Ensure that env vars are not passed through returns_ as
+# that was seen to fail on FreeBSD /bin/sh at least
+sc_prohibit_env_returns:
+	@prohibit='=[^ ]* returns_ '					\
+	exclude='_ returns_ '						\
+	halt='Passing env vars to returns_ is non portable'		\
 	in_vc_files='^tests/'						\
 	  $(_sc_search_regexp)
 
@@ -757,7 +780,7 @@ sc_fs-magic-compare:
 # Ensure gnulib generated files are ignored
 # TODO: Perhaps augment gnulib-tool to do this in lib/.gitignore?
 sc_gitignore_missing:
-	@{ sed -n '/^\/lib\/.*\.h$$/{p;p}' .gitignore;			\
+	@{ sed -n '/^\/lib\/.*\.h$$/{p;p}' $(srcdir)/.gitignore;	\
 	    find lib -name '*.in*' ! -name '*~' ! -name 'sys_*' |	\
 	      sed 's|^|/|; s|_\(.*in\.h\)|/\1|; s/\.in//'; } |		\
 	      sort | uniq -u | grep . && { echo '$(ME): Add above'	\
@@ -765,7 +788,8 @@ sc_gitignore_missing:
 
 # Flag redundant entries in .gitignore
 sc_gitignore_redundant:
-	@{ grep ^/lib .gitignore; sed 's|^|/lib|' lib/.gitignore; } |	\
+	@{ grep ^/lib $(srcdir)/.gitignore;				\
+	   sed 's|^|/lib|' $(srcdir)/lib/.gitignore; } |		\
 	    sort | uniq -d | grep . && { echo '$(ME): Remove above'	\
 	      'entries from .gitignore' >&2; exit 1; } || :
 
@@ -794,7 +818,7 @@ exclude_file_name_regexp--sc_bindtextdomain = \
 exclude_file_name_regexp--sc_trailing_blank = \
   ^(tests/pr/|gl/.*\.diff$$|man/help2man)
 exclude_file_name_regexp--sc_system_h_headers = \
-  ^src/((system|copy)\.h|make-prime-list\.c)$$
+  ^src/((die|system|copy)\.h|make-prime-list\.c)$$
 
 _src = (false|lbracket|ls-(dir|ls|vdir)|tac-pipe|uname-(arch|uname))
 exclude_file_name_regexp--sc_require_config_h_first = \

@@ -1,5 +1,5 @@
 /* groups -- print the groups a user is in
-   Copyright (C) 1989-2016 Free Software Foundation, Inc.
+   Copyright (C) 1989-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by James Youngman based on id.c and groups.sh,
    which were written by Arnold Robbins and David MacKenzie. */
@@ -25,7 +25,7 @@
 #include <getopt.h>
 
 #include "system.h"
-#include "error.h"
+#include "die.h"
 #include "group-list.h"
 #include "quote.h"
 
@@ -103,17 +103,17 @@ main (int argc, char **argv)
       errno = 0;
       ruid = getuid ();
       if (ruid == NO_UID && errno)
-        error (EXIT_FAILURE, errno, _("cannot get real UID"));
+        die (EXIT_FAILURE, errno, _("cannot get real UID"));
 
       errno = 0;
       egid = getegid ();
       if (egid == NO_GID && errno)
-        error (EXIT_FAILURE, errno, _("cannot get effective GID"));
+        die (EXIT_FAILURE, errno, _("cannot get effective GID"));
 
       errno = 0;
       rgid = getgid ();
       if (rgid == NO_GID && errno)
-        error (EXIT_FAILURE, errno, _("cannot get real GID"));
+        die (EXIT_FAILURE, errno, _("cannot get real GID"));
 
       if (!print_group_list (NULL, ruid, rgid, egid, true, ' '))
         ok = false;
@@ -122,17 +122,20 @@ main (int argc, char **argv)
   else
     {
       /* At least one argument.  Divulge the details of the specified users.  */
-      while (optind < argc)
+      for ( ; optind < argc; optind++)
         {
           struct passwd *pwd = getpwnam (argv[optind]);
           if (pwd == NULL)
-            error (EXIT_FAILURE, 0, _("%s: no such user"),
-                   quote (argv[optind]));
+            {
+              error (0, 0, _("%s: no such user"), quote (argv[optind]));
+              ok = false;
+              continue;
+            }
           ruid = pwd->pw_uid;
           rgid = egid = pwd->pw_gid;
 
           printf ("%s : ", argv[optind]);
-          if (!print_group_list (argv[optind++], ruid, rgid, egid, true, ' '))
+          if (!print_group_list (argv[optind], ruid, rgid, egid, true, ' '))
             ok = false;
           putchar ('\n');
         }

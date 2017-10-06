@@ -1,5 +1,5 @@
 /* mv -- move or rename files
-   Copyright (C) 1986-2016 Free Software Foundation, Inc.
+   Copyright (C) 1986-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Mike Parker, David MacKenzie, and Jim Meyering */
 
@@ -27,6 +27,7 @@
 #include "backupfile.h"
 #include "copy.h"
 #include "cp-hash.h"
+#include "die.h"
 #include "error.h"
 #include "filenamecat.h"
 #include "remove.h"
@@ -94,8 +95,8 @@ rm_option_init (struct rm_options *x)
     static struct dev_ino dev_ino_buf;
     x->root_dev_ino = get_root_dev_ino (&dev_ino_buf);
     if (x->root_dev_ino == NULL)
-      error (EXIT_FAILURE, errno, _("failed to get attributes of %s"),
-             quoteaf ("/"));
+      die (EXIT_FAILURE, errno, _("failed to get attributes of %s"),
+           quoteaf ("/"));
   }
 }
 
@@ -113,6 +114,7 @@ cp_option_init (struct cp_options *x)
   x->hard_link = false;
   x->interactive = I_UNSPECIFIED;
   x->move_mode = true;
+  x->install_mode = false;
   x->one_file_system = false;
   x->preserve_ownership = true;
   x->preserve_links = true;
@@ -152,7 +154,7 @@ target_directory_operand (char const *file)
   int err = (stat (file, &st) == 0 ? 0 : errno);
   bool is_a_dir = !err && S_ISDIR (st.st_mode);
   if (err && err != ENOENT)
-    error (EXIT_FAILURE, err, _("failed to access %s"), quoteaf (file));
+    die (EXIT_FAILURE, err, _("failed to access %s"), quoteaf (file));
   return is_a_dir;
 }
 
@@ -322,19 +324,7 @@ If you specify more than one of -i, -f, -n, only the final one takes effect.\n\
 "), stdout);
       fputs (HELP_OPTION_DESCRIPTION, stdout);
       fputs (VERSION_OPTION_DESCRIPTION, stdout);
-      fputs (_("\
-\n\
-The backup suffix is '~', unless set with --suffix or SIMPLE_BACKUP_SUFFIX.\n\
-The version control method may be selected via the --backup option or through\n\
-the VERSION_CONTROL environment variable.  Here are the values:\n\
-\n\
-"), stdout);
-      fputs (_("\
-  none, off       never make backups (even if --backup is given)\n\
-  numbered, t     make numbered backups\n\
-  existing, nil   numbered if numbered backups exist, simple otherwise\n\
-  simple, never   always make simple backups\n\
-"), stdout);
+      emit_backup_suffix_note ();
       emit_ancillary_info (PROGRAM_NAME);
     }
   exit (status);
@@ -346,7 +336,7 @@ main (int argc, char **argv)
   int c;
   bool ok;
   bool make_backups = false;
-  char *backup_suffix_string;
+  char const *backup_suffix = NULL;
   char *version_control_string = NULL;
   struct cp_options x;
   char *target_directory = NULL;
@@ -367,10 +357,6 @@ main (int argc, char **argv)
 
   /* Try to disable the ability to unlink a directory.  */
   priv_set_remove_linkdir ();
-
-  /* FIXME: consider not calling getenv for SIMPLE_BACKUP_SUFFIX unless
-     we'll actually use backup_suffix_string.  */
-  backup_suffix_string = getenv ("SIMPLE_BACKUP_SUFFIX");
 
   while ((c = getopt_long (argc, argv, "bfint:uvS:TZ", long_options, NULL))
          != -1)
@@ -396,16 +382,16 @@ main (int argc, char **argv)
           break;
         case 't':
           if (target_directory)
-            error (EXIT_FAILURE, 0, _("multiple target directories specified"));
+            die (EXIT_FAILURE, 0, _("multiple target directories specified"));
           else
             {
               struct stat st;
               if (stat (optarg, &st) != 0)
-                error (EXIT_FAILURE, errno, _("failed to access %s"),
-                       quoteaf (optarg));
+                die (EXIT_FAILURE, errno, _("failed to access %s"),
+                     quoteaf (optarg));
               if (! S_ISDIR (st.st_mode))
-                error (EXIT_FAILURE, 0, _("target %s is not a directory"),
-                       quoteaf (optarg));
+                die (EXIT_FAILURE, 0, _("target %s is not a directory"),
+                     quoteaf (optarg));
             }
           target_directory = optarg;
           break;
@@ -420,7 +406,7 @@ main (int argc, char **argv)
           break;
         case 'S':
           make_backups = true;
-          backup_suffix_string = optarg;
+          backup_suffix = optarg;
           break;
         case 'Z':
           /* As a performance enhancement, don't even bother trying
@@ -454,9 +440,9 @@ main (int argc, char **argv)
   if (no_target_directory)
     {
       if (target_directory)
-        error (EXIT_FAILURE, 0,
-               _("cannot combine --target-directory (-t) "
-                 "and --no-target-directory (-T)"));
+        die (EXIT_FAILURE, 0,
+             _("cannot combine --target-directory (-t) "
+               "and --no-target-directory (-T)"));
       if (2 < n_files)
         {
           error (0, 0, _("extra operand %s"), quoteaf (file[2]));
@@ -469,8 +455,8 @@ main (int argc, char **argv)
       if (target_directory_operand (file[n_files - 1]))
         target_directory = file[--n_files];
       else if (2 < n_files)
-        error (EXIT_FAILURE, 0, _("target %s is not a directory"),
-               quoteaf (file[n_files - 1]));
+        die (EXIT_FAILURE, 0, _("target %s is not a directory"),
+             quoteaf (file[n_files - 1]));
     }
 
   if (make_backups && x.interactive == I_ALWAYS_NO)
@@ -480,20 +466,16 @@ main (int argc, char **argv)
       usage (EXIT_FAILURE);
     }
 
-  if (backup_suffix_string)
-    simple_backup_suffix = xstrdup (backup_suffix_string);
-
   x.backup_type = (make_backups
                    ? xget_version (_("backup type"),
                                    version_control_string)
                    : no_backups);
+  set_simple_backup_suffix (backup_suffix);
 
   hash_init ();
 
   if (target_directory)
     {
-      int i;
-
       /* Initialize the hash table only if we'll need it.
          The problem it is used to detect can arise only if there are
          two or more files to move.  */
@@ -501,7 +483,7 @@ main (int argc, char **argv)
         dest_info_init (&x);
 
       ok = true;
-      for (i = 0; i < n_files; ++i)
+      for (int i = 0; i < n_files; ++i)
         ok &= movefile (file[i], target_directory, true, &x);
     }
   else

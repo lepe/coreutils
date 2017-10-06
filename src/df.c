@@ -1,5 +1,5 @@
 /* df - summarize free disk space
-   Copyright (C) 1991-2016 Free Software Foundation, Inc.
+   Copyright (C) 1991-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by David MacKenzie <djm@gnu.ai.mit.edu>.
    --human-readable option added by lm@sgi.com.
@@ -26,6 +26,7 @@
 
 #include "system.h"
 #include "canonicalize.h"
+#include "die.h"
 #include "error.h"
 #include "fsusage.h"
 #include "human.h"
@@ -40,7 +41,7 @@
 #define PROGRAM_NAME "df"
 
 #define AUTHORS \
-  proper_name_utf8 ("Torbjorn Granlund", "Torbj\303\266rn Granlund"), \
+  proper_name ("Torbjorn Granlund"), \
   proper_name ("David MacKenzie"), \
   proper_name ("Paul Eggert")
 
@@ -673,9 +674,12 @@ filter_mount_list (bool devices_only)
          On Linux we probably have me_dev populated from /proc/self/mountinfo,
          however we still stat() in case another device was mounted later.  */
       if ((me->me_remote && show_local_fs)
+          || (me->me_dummy && !show_all_fs && !show_listed_fs)
+          || (!selected_fstype (me->me_type) || excluded_fstype (me->me_type))
           || -1 == stat (me->me_mountdir, &buf))
         {
-          /* If remote, and showing just local, add ME for filtering later.
+          /* If remote, and showing just local, or FS type is excluded,
+             add ME for filtering later.
              If stat failed; add ME to be able to complain about it later.  */
           buf.st_dev = me->me_dev;
         }
@@ -1698,13 +1702,11 @@ main (int argc, char **argv)
 
   if (optind < argc)
     {
-      int i;
-
       /* Open each of the given entries to make sure any corresponding
          partition is automounted.  This must be done before reading the
          file system table.  */
       stats = xnmalloc (argc - optind, sizeof *stats);
-      for (i = optind; i < argc; ++i)
+      for (int i = optind; i < argc; ++i)
         {
           /* Prefer to open with O_NOCTTY and use fstat, but fall back
              on using "stat", in case the file is unreadable.  */
@@ -1756,12 +1758,10 @@ main (int argc, char **argv)
 
   if (optind < argc)
     {
-      int i;
-
       /* Display explicitly requested empty file systems.  */
       show_listed_fs = true;
 
-      for (i = optind; i < argc; ++i)
+      for (int i = optind; i < argc; ++i)
         if (argv[i])
           get_entry (argv[i], &stats[i - optind]);
 
@@ -1784,7 +1784,7 @@ main (int argc, char **argv)
       /* Print the "no FS processed" diagnostic only if there was no preceding
          diagnostic, e.g., if all have been excluded.  */
       if (exit_status == EXIT_SUCCESS)
-        error (EXIT_FAILURE, 0, _("no file systems processed"));
+        die (EXIT_FAILURE, 0, _("no file systems processed"));
     }
 
   IF_LINT (free (columns));

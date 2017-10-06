@@ -1,5 +1,5 @@
 /* 'ln' program to create links between files.
-   Copyright (C) 1986-2016 Free Software Foundation, Inc.
+   Copyright (C) 1986-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Mike Parker and David MacKenzie. */
 
@@ -23,9 +23,11 @@
 
 #include "system.h"
 #include "backupfile.h"
+#include "die.h"
 #include "error.h"
 #include "filenamecat.h"
 #include "file-set.h"
+#include "force-link.h"
 #include "hash.h"
 #include "hash-triple.h"
 #include "relpath.h"
@@ -129,10 +131,10 @@ target_directory_operand (char const *file)
   int err = (stat_result == 0 ? 0 : errno);
   bool is_a_dir = !err && S_ISDIR (st.st_mode);
   if (err && ! errno_nonexisting (errno))
-    error (EXIT_FAILURE, err, _("failed to access %s"), quoteaf (file));
+    die (EXIT_FAILURE, err, _("failed to access %s"), quoteaf (file));
   if (is_a_dir < looks_like_a_dir)
-    error (EXIT_FAILURE, err, _("target %s is not a directory"),
-           quoteaf (file));
+    die (EXIT_FAILURE, err, _("target %s is not a directory"),
+         quoteaf (file));
   return is_a_dir;
 }
 
@@ -182,7 +184,6 @@ do_link (const char *source, const char *dest)
   char *rel_source = NULL;
   bool dest_lstat_ok = false;
   bool source_is_dir = false;
-  bool ok;
 
   if (!symbolic_link)
     {
@@ -300,12 +301,7 @@ do_link (const char *source, const char *dest)
   if (relative)
     source = rel_source = convert_abs_rel (source, dest);
 
-  ok = ((symbolic_link ? symlink (source, dest)
-         : linkat (AT_FDCWD, source, AT_FDCWD, dest,
-                   logical ? AT_SYMLINK_FOLLOW : 0))
-        == 0);
-
-  /* If the attempt to create a link failed and we are removing or
+  /* If the attempt to create a link fails and we are removing or
      backing up destinations, unlink the destination and try again.
 
      On the surface, POSIX describes an algorithm that states that
@@ -323,22 +319,12 @@ do_link (const char *source, const char *dest)
      that refer to the same file), rename succeeds and DEST remains.
      If we didn't remove DEST in that case, the subsequent symlink or link
      call would fail.  */
-
-  if (!ok && errno == EEXIST && (remove_existing_files || dest_backup))
-    {
-      if (unlink (dest) != 0)
-        {
-          error (0, errno, _("cannot remove %s"), quoteaf (dest));
-          free (dest_backup);
-          free (rel_source);
-          return false;
-        }
-
-      ok = ((symbolic_link ? symlink (source, dest)
-             : linkat (AT_FDCWD, source, AT_FDCWD, dest,
-                       logical ? AT_SYMLINK_FOLLOW : 0))
-            == 0);
-    }
+  bool ok_to_remove = remove_existing_files || dest_backup;
+  bool ok = 0 <= (symbolic_link
+                  ? force_symlinkat (source, AT_FDCWD, dest, ok_to_remove)
+                  : force_linkat (AT_FDCWD, source, AT_FDCWD, dest,
+                                  logical ? AT_SYMLINK_FOLLOW : 0,
+                                  ok_to_remove));
 
   if (ok)
     {
@@ -435,19 +421,7 @@ interpreted in relation to its parent directory.\n\
 "), stdout);
       fputs (HELP_OPTION_DESCRIPTION, stdout);
       fputs (VERSION_OPTION_DESCRIPTION, stdout);
-      fputs (_("\
-\n\
-The backup suffix is '~', unless set with --suffix or SIMPLE_BACKUP_SUFFIX.\n\
-The version control method may be selected via the --backup option or through\n\
-the VERSION_CONTROL environment variable.  Here are the values:\n\
-\n\
-"), stdout);
-      fputs (_("\
-  none, off       never make backups (even if --backup is given)\n\
-  numbered, t     make numbered backups\n\
-  existing, nil   numbered if numbered backups exist, simple otherwise\n\
-  simple, never   always make simple backups\n\
-"), stdout);
+      emit_backup_suffix_note ();
       printf (_("\
 \n\
 Using -s ignores -L and -P.  Otherwise, the last option specified controls\n\
@@ -464,7 +438,7 @@ main (int argc, char **argv)
   int c;
   bool ok;
   bool make_backups = false;
-  char *backup_suffix_string;
+  char const *backup_suffix = NULL;
   char *version_control_string = NULL;
   char const *target_directory = NULL;
   bool no_target_directory = false;
@@ -478,10 +452,6 @@ main (int argc, char **argv)
   textdomain (PACKAGE);
 
   atexit (close_stdin);
-
-  /* FIXME: consider not calling getenv for SIMPLE_BACKUP_SUFFIX unless
-     we'll actually use backup_suffix_string.  */
-  backup_suffix_string = getenv ("SIMPLE_BACKUP_SUFFIX");
 
   symbolic_link = remove_existing_files = interactive = verbose
     = hard_dir_link = false;
@@ -525,16 +495,16 @@ main (int argc, char **argv)
           break;
         case 't':
           if (target_directory)
-            error (EXIT_FAILURE, 0, _("multiple target directories specified"));
+            die (EXIT_FAILURE, 0, _("multiple target directories specified"));
           else
             {
               struct stat st;
               if (stat (optarg, &st) != 0)
-                error (EXIT_FAILURE, errno, _("failed to access %s"),
-                       quoteaf (optarg));
+                die (EXIT_FAILURE, errno, _("failed to access %s"),
+                     quoteaf (optarg));
               if (! S_ISDIR (st.st_mode))
-                error (EXIT_FAILURE, 0, _("target %s is not a directory"),
-                       quoteaf (optarg));
+                die (EXIT_FAILURE, 0, _("target %s is not a directory"),
+                     quoteaf (optarg));
             }
           target_directory = optarg;
           break;
@@ -546,7 +516,7 @@ main (int argc, char **argv)
           break;
         case 'S':
           make_backups = true;
-          backup_suffix_string = optarg;
+          backup_suffix = optarg;
           break;
         case_GETOPT_HELP_CHAR;
         case_GETOPT_VERSION_CHAR (PROGRAM_NAME, AUTHORS);
@@ -568,9 +538,9 @@ main (int argc, char **argv)
   if (no_target_directory)
     {
       if (target_directory)
-        error (EXIT_FAILURE, 0,
-               _("cannot combine --target-directory "
-                 "and --no-target-directory"));
+        die (EXIT_FAILURE, 0,
+             _("cannot combine --target-directory "
+               "and --no-target-directory"));
       if (n_files != 2)
         {
           if (n_files < 2)
@@ -589,28 +559,24 @@ main (int argc, char **argv)
       else if (2 <= n_files && target_directory_operand (file[n_files - 1]))
         target_directory = file[--n_files];
       else if (2 < n_files)
-        error (EXIT_FAILURE, 0, _("target %s is not a directory"),
-               quoteaf (file[n_files - 1]));
+        die (EXIT_FAILURE, 0, _("target %s is not a directory"),
+             quoteaf (file[n_files - 1]));
     }
-
-  if (backup_suffix_string)
-    simple_backup_suffix = xstrdup (backup_suffix_string);
 
   backup_type = (make_backups
                  ? xget_version (_("backup type"), version_control_string)
                  : no_backups);
+  set_simple_backup_suffix (backup_suffix);
 
   if (relative && !symbolic_link)
     {
-        error (EXIT_FAILURE, 0,
-               _("cannot do --relative without --symbolic"));
+        die (EXIT_FAILURE, 0,
+             _("cannot do --relative without --symbolic"));
     }
 
 
   if (target_directory)
     {
-      int i;
-
       /* Create the data structure we'll use to record which hard links we
          create.  Used to ensure that ln detects an obscure corner case that
          might result in user data loss.  Create it only if needed.  */
@@ -634,7 +600,7 @@ main (int argc, char **argv)
         }
 
       ok = true;
-      for (i = 0; i < n_files; ++i)
+      for (int i = 0; i < n_files; ++i)
         {
           char *dest_base;
           char *dest = file_name_concat (target_directory,

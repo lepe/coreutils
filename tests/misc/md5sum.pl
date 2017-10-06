@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # Basic tests for "md5sum".
 
-# Copyright (C) 1998-2016 Free Software Foundation, Inc.
+# Copyright (C) 1998-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use strict;
 
@@ -149,6 +149,13 @@ my @Tests =
                                 {ERR=>
                                     "md5sum: f.md5: no file was verified\n"},
                                 {EXIT=> 1}],
+     # coreutils-8.25 with --ignore-missing treated checksums starting with 00
+     # as if the file was not present
+     ['check-ignore-missing-6', '--check', '--ignore-missing',
+                                {AUX=> {f=> '9t'}},
+                                {IN=> {'f.md5' =>
+                                    "006999e6df389641adf1fa3a74801d9d  f\n"}},
+                                {OUT=>"f: OK\n"}],
      ['bsd-segv', '--check', {IN=> {'z' => "MD5 ("}}, {EXIT=> 1},
       {ERR=> "$prog: z: no properly formatted MD5 checksum lines found\n"}],
 

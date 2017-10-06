@@ -1,7 +1,7 @@
 #!/bin/sh
 # Test the --pid option of tail.
 
-# Copyright (C) 2003-2016 Free Software Foundation, Inc.
+# Copyright (C) 2003-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ tail
@@ -31,8 +31,7 @@ for mode in '' '---disable-inotify'; do
   tail -f $mode here & pid=$!
 
   # Ensure that tail --pid=PID does not exit when PID is alive.
-  timeout 1 tail -f -s.1 --pid=$pid $mode here
-  test $? = 124 || fail=1
+  returns_ 124 timeout 1 tail -f -s.1 --pid=$pid $mode here || fail=1
 
   cleanup_
 
@@ -44,8 +43,7 @@ for mode in '' '---disable-inotify'; do
   test $ret = 0 || fail=1
 
   # Ensure tail doesn't wait for data when PID is dead
-  timeout 10 tail -f -s10 --pid=$PID_T_MAX $mode empty
-  test $? = 124 && fail=1
+  returns_ 124 timeout 10 tail -f -s10 --pid=$PID_T_MAX $mode empty && fail=1
 done
 
 Exit $fail

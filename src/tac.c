@@ -1,5 +1,5 @@
 /* tac - concatenate and print files in reverse
-   Copyright (C) 1988-2016 Free Software Foundation, Inc.
+   Copyright (C) 1988-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Jay Lepreau (lepreau@cs.utah.edu).
    GNU enhancements by David MacKenzie (djm@gnu.ai.mit.edu). */
@@ -43,11 +43,12 @@ tac -r -s '.\|
 
 #include <regex.h>
 
+#include "die.h"
 #include "error.h"
 #include "filenamecat.h"
 #include "safe-read.h"
 #include "stdlib--.h"
-#include "xfreopen.h"
+#include "xbinary-io.h"
 
 /* The official name of this program (e.g., no 'g' prefix).  */
 #define PROGRAM_NAME "tac"
@@ -272,7 +273,7 @@ tac_seekable (int input_fd, const char *file, off_t file_pos)
           regoff_t ret;
 
           if (1 < range)
-            error (EXIT_FAILURE, 0, _("record too large"));
+            die (EXIT_FAILURE, 0, _("record too large"));
 
           if (range == 1
               || ((ret = re_search (&compiled_separator, G_buffer,
@@ -281,8 +282,8 @@ tac_seekable (int input_fd, const char *file, off_t file_pos)
             match_start = G_buffer - 1;
           else if (ret == -2)
             {
-              error (EXIT_FAILURE, 0,
-                     _("error in regular expression search"));
+              die (EXIT_FAILURE, 0,
+                   _("error in regular expression search"));
             }
           else
             {
@@ -476,6 +477,7 @@ temp_stream (FILE **fp, char **file_name)
     }
   else
     {
+      clearerr (tmp_fp);
       if (fseeko (tmp_fp, 0, SEEK_SET) < 0
           || ftruncate (fileno (tmp_fp), 0) < 0)
         {
@@ -511,13 +513,13 @@ copy_to_temp (FILE **g_tmp, char **g_tempfile, int input_fd, char const *file)
       if (bytes_read == SAFE_READ_ERROR)
         {
           error (0, errno, _("%s: read error"), quotef (file));
-          goto Fail;
+          return -1;
         }
 
       if (fwrite (G_buffer, 1, bytes_read, fp) != bytes_read)
         {
           error (0, errno, _("%s: write error"), quotef (file_name));
-          goto Fail;
+          return -1;
         }
 
       /* Implicitly <= OFF_T_MAX due to preceding fwrite(),
@@ -529,16 +531,12 @@ copy_to_temp (FILE **g_tmp, char **g_tempfile, int input_fd, char const *file)
   if (fflush (fp) != 0)
     {
       error (0, errno, _("%s: write error"), quotef (file_name));
-      goto Fail;
+      return -1;
     }
 
   *g_tmp = fp;
   *g_tempfile = file_name;
   return bytes_copied;
-
- Fail:
-  fclose (fp);
-  return -1;
 }
 
 /* Copy INPUT_FD to a temporary, then tac that file.
@@ -574,8 +572,7 @@ tac_file (const char *filename)
       have_read_stdin = true;
       fd = STDIN_FILENO;
       filename = _("standard input");
-      if (O_BINARY && ! isatty (STDIN_FILENO))
-        xfreopen (NULL, "rb", stdin);
+      xset_binary_mode (STDIN_FILENO, O_BINARY);
     }
   else
     {
@@ -650,7 +647,7 @@ main (int argc, char **argv)
   if (sentinel_length == 0)
     {
       if (*separator == 0)
-        error (EXIT_FAILURE, 0, _("separator cannot be empty"));
+        die (EXIT_FAILURE, 0, _("separator cannot be empty"));
 
       compiled_separator.buffer = NULL;
       compiled_separator.allocated = 0;
@@ -659,7 +656,7 @@ main (int argc, char **argv)
       error_message = re_compile_pattern (separator, strlen (separator),
                                           &compiled_separator);
       if (error_message)
-        error (EXIT_FAILURE, 0, "%s", (error_message));
+        die (EXIT_FAILURE, 0, "%s", (error_message));
     }
   else
     match_length = sentinel_length = *separator ? strlen (separator) : 1;
@@ -690,13 +687,11 @@ main (int argc, char **argv)
           ? (char const *const *) &argv[optind]
           : default_file_list);
 
-  if (O_BINARY && ! isatty (STDOUT_FILENO))
-    xfreopen (NULL, "wb", stdout);
+  xset_binary_mode (STDOUT_FILENO, O_BINARY);
 
   {
-    size_t i;
     ok = true;
-    for (i = 0; file[i]; ++i)
+    for (size_t i = 0; file[i]; ++i)
       ok &= tac_file (file[i]);
   }
 

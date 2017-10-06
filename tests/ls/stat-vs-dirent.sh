@@ -1,7 +1,7 @@
 #!/bin/sh
 # Ensure that d_ino (from ls -di) and st_ino (from stat --format=%i) match.
 
-# Copyright (C) 2006-2016 Free Software Foundation, Inc.
+# Copyright (C) 2006-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ ls
@@ -23,8 +23,7 @@ print_ver_ ls
 root_dev_ino=$(stat --format=%d-%i /)
 t=$(pwd)
 while :; do
-  ls -i1 "$t" > tmp
-  if test $? = 0; then
+  if ls -i1 "$t" > tmp; then
     # Extract the inode number from the first line of output from ls -i1.
     # This value comes from dirent.d_ino, on systems with d_ino support.
     d_ino=$(sed -n '1s/^ *\([0-9][0-9]*\) .*/\1/p;q' tmp)

@@ -1,5 +1,5 @@
 /* od -- dump files in octal and other formats
-   Copyright (C) 1992-2016 Free Software Foundation, Inc.
+   Copyright (C) 1992-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Jim Meyering.  */
 
@@ -24,11 +24,12 @@
 #include <sys/types.h>
 #include "system.h"
 #include "argmatch.h"
+#include "die.h"
 #include "error.h"
 #include "ftoastr.h"
 #include "quote.h"
 #include "stat-size.h"
-#include "xfreopen.h"
+#include "xbinary-io.h"
 #include "xprintf.h"
 #include "xstrtol.h"
 
@@ -389,7 +390,7 @@ TYPE is made up of one or more of these specifications:\n\
 "), stdout);
       fputs (_("\
   d[SIZE]    signed decimal, SIZE bytes per integer\n\
-  f[SIZE]    floating point, SIZE bytes per integer\n\
+  f[SIZE]    floating point, SIZE bytes per float\n\
   o[SIZE]    octal, SIZE bytes per integer\n\
   u[SIZE]    unsigned decimal, SIZE bytes per integer\n\
   x[SIZE]    hexadecimal, SIZE bytes per integer\n\
@@ -483,9 +484,8 @@ PRINT_FLOATTYPE (print_long_double, long double, ldtoastr, LDBL_BUFSIZE_BOUND)
 static void
 dump_hexl_mode_trailer (size_t n_bytes, const char *block)
 {
-  size_t i;
   fputs ("  >", stdout);
-  for (i = n_bytes; i > 0; i--)
+  for (size_t i = n_bytes; i > 0; i--)
     {
       unsigned char c = *block++;
       unsigned char c2 = (isprint (c) ? c : '.');
@@ -913,8 +913,7 @@ open_next_file (void)
           input_filename = _("standard input");
           in_stream = stdin;
           have_read_stdin = true;
-          if (O_BINARY && ! isatty (STDIN_FILENO))
-            xfreopen (NULL, "rb", stdin);
+          xset_binary_mode (STDIN_FILENO, O_BINARY);
         }
       else
         {
@@ -1102,7 +1101,7 @@ skip (uintmax_t n_skip)
     }
 
   if (n_skip != 0)
-    error (EXIT_FAILURE, 0, _("cannot skip past end of combined input"));
+    die (EXIT_FAILURE, 0, _("cannot skip past end of combined input"));
 
   return ok;
 }
@@ -1205,10 +1204,8 @@ write_block (uintmax_t current_offset, size_t n_bytes,
     }
   else
     {
-      size_t i;
-
       prev_pair_equal = false;
-      for (i = 0; i < n_specs; i++)
+      for (size_t i = 0; i < n_specs; i++)
         {
           int datum_width = width_bytes[spec[i].size];
           int fields_per_block = bytes_per_block / datum_width;
@@ -1318,10 +1315,9 @@ read_block (size_t n, char *block, size_t *n_bytes_in_buffer)
 static int _GL_ATTRIBUTE_PURE
 get_lcm (void)
 {
-  size_t i;
   int l_c_m = 1;
 
-  for (i = 0; i < n_specs; i++)
+  for (size_t i = 0; i < n_specs; i++)
     l_c_m = lcm (l_c_m, width_bytes[spec[i].size]);
   return l_c_m;
 }
@@ -1654,10 +1650,10 @@ main (int argc, char **argv)
               address_pad_len = 0;
               break;
             default:
-              error (EXIT_FAILURE, 0,
-                     _("invalid output address radix '%c';\
+              die (EXIT_FAILURE, 0,
+                   _("invalid output address radix '%c';\
  it must be one character from [doxn]"),
-                     optarg[0]);
+                   optarg[0]);
               break;
             }
           break;
@@ -1692,7 +1688,7 @@ main (int argc, char **argv)
               /* The minimum string length may be no larger than SIZE_MAX,
                  since we may allocate a buffer of this size.  */
               if (SIZE_MAX < tmp)
-                error (EXIT_FAILURE, 0, _("%s is too large"), quote (optarg));
+                die (EXIT_FAILURE, 0, _("%s is too large"), quote (optarg));
 
               string_min = tmp;
             }
@@ -1773,7 +1769,7 @@ main (int argc, char **argv)
               if (s_err != LONGINT_OK)
                 xstrtol_fatal (s_err, oi, c, long_options, optarg);
               if (SIZE_MAX < w_tmp)
-                error (EXIT_FAILURE, 0, _("%s is too large"), quote (optarg));
+                die (EXIT_FAILURE, 0, _("%s is too large"), quote (optarg));
               desired_width = w_tmp;
             }
           break;
@@ -1792,8 +1788,8 @@ main (int argc, char **argv)
     return EXIT_FAILURE;
 
   if (flag_dump_strings && n_specs > 0)
-    error (EXIT_FAILURE, 0,
-           _("no type may be specified when dumping strings"));
+    die (EXIT_FAILURE, 0,
+         _("no type may be specified when dumping strings"));
 
   n_files = argc - optind;
 
@@ -1889,7 +1885,7 @@ main (int argc, char **argv)
     {
       end_offset = n_bytes_to_skip + max_bytes_to_format;
       if (end_offset < n_bytes_to_skip)
-        error (EXIT_FAILURE, 0, _("skip-bytes + read-bytes is too large"));
+        die (EXIT_FAILURE, 0, _("skip-bytes + read-bytes is too large"));
     }
 
   if (n_specs == 0)
@@ -1979,7 +1975,7 @@ main (int argc, char **argv)
 cleanup:
 
   if (have_read_stdin && fclose (stdin) == EOF)
-    error (EXIT_FAILURE, errno, _("standard input"));
+    die (EXIT_FAILURE, errno, _("standard input"));
 
   return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

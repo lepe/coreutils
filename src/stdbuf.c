@@ -1,5 +1,5 @@
 /* stdbuf -- setup the standard streams for a command
-   Copyright (C) 2009-2016 Free Software Foundation, Inc.
+   Copyright (C) 2009-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Pádraig Brady.  */
 
@@ -23,6 +23,7 @@
 #include <assert.h>
 
 #include "system.h"
+#include "die.h"
 #include "error.h"
 #include "filenamecat.h"
 #include "quote.h"
@@ -34,7 +35,7 @@
 #define PROGRAM_NAME "stdbuf"
 #define LIB_NAME "libstdbuf.so" /* FIXME: don't hardcode  */
 
-#define AUTHORS proper_name_utf8 ("Padraig Brady", "P\303\241draig Brady")
+#define AUTHORS proper_name ("Padraig Brady")
 
 static char *program_path;
 
@@ -238,7 +239,7 @@ set_LD_PRELOAD (void)
 
       ++path;
       if ( ! *path)
-        error (EXIT_CANCELED, 0, _("failed to find %s"), quote (LIB_NAME));
+        die (EXIT_CANCELED, 0, _("failed to find %s"), quote (LIB_NAME));
     }
 
   /* FIXME: Do we need to support libstdbuf.dll, c:, '\' separators etc?  */
@@ -261,9 +262,9 @@ set_LD_PRELOAD (void)
 
   if (ret != 0)
     {
-      error (EXIT_CANCELED, errno,
-             _("failed to update the environment with %s"),
-             quote (LD_PRELOAD));
+      die (EXIT_CANCELED, errno,
+           _("failed to update the environment with %s"),
+           quote (LD_PRELOAD));
     }
 }
 
@@ -274,9 +275,8 @@ static bool
 set_libstdbuf_options (void)
 {
   bool env_set = false;
-  size_t i;
 
-  for (i = 0; i < ARRAY_CARDINALITY (stdbuf); i++)
+  for (size_t i = 0; i < ARRAY_CARDINALITY (stdbuf); i++)
     {
       if (stdbuf[i].optarg)
         {
@@ -295,9 +295,9 @@ set_libstdbuf_options (void)
 
           if (putenv (var) != 0)
             {
-              error (EXIT_CANCELED, errno,
-                     _("failed to update the environment with %s"),
-                     quote (var));
+              die (EXIT_CANCELED, errno,
+                   _("failed to update the environment with %s"),
+                   quote (var));
             }
 
           env_set = true;
@@ -348,7 +348,7 @@ main (int argc, char **argv)
 
           if (!STREQ (optarg, "L")
               && parse_size (optarg, &stdbuf[opt_fileno].size) == -1)
-            error (EXIT_CANCELED, errno, _("invalid mode %s"), quote (optarg));
+            die (EXIT_CANCELED, errno, _("invalid mode %s"), quote (optarg));
 
           break;
 

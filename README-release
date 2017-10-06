@@ -16,7 +16,7 @@ Here are most of the steps we (maintainers) follow when making a release.
 * Ensure that you've pushed all changes that belong in the release
   and that the NixOS/Hydra autobuilder is reporting all is well:
 
-      http://hydra.nixos.org/jobset/gnu/coreutils-master
+      https://hydra.nixos.org/jobset/gnu/coreutils-master
 
 * Run bootstrap one last time.  This downloads any new translations:
 
@@ -134,11 +134,11 @@ Once all the builds and tests have passed,
 * Send the announcement email message (signed with the release key)
 
 * Approve the announcement here:
-  http://lists.gnu.org/mailman/admindb/coreutils-announce
+  https://lists.gnu.org/mailman/admindb/coreutils-announce
 
 * After each non-alpha release, update the on-line manual accessible via
 
-    http://www.gnu.org/software/coreutils/manual/
+    https://www.gnu.org/software/coreutils/manual/
 
   by running this:
 

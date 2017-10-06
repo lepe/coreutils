@@ -1,5 +1,5 @@
 /* system-dependent definitions for coreutils
-   Copyright (C) 1989-2016 Free Software Foundation, Inc.
+   Copyright (C) 1989-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Include this file _after_ system headers if possible.  */
 
@@ -197,23 +197,23 @@ select_plural (uintmax_t n)
 #define STRNCMP_LIT(s, lit) strncmp (s, "" lit "", sizeof (lit) - 1)
 
 #if !HAVE_DECL_GETLOGIN
-char *getlogin ();
+char *getlogin (void);
 #endif
 
 #if !HAVE_DECL_TTYNAME
-char *ttyname ();
+char *ttyname (int);
 #endif
 
 #if !HAVE_DECL_GETEUID
-uid_t geteuid ();
+uid_t geteuid (void);
 #endif
 
 #if !HAVE_DECL_GETPWUID
-struct passwd *getpwuid ();
+struct passwd *getpwuid (uid_t);
 #endif
 
 #if !HAVE_DECL_GETGRGID
-struct group *getgrgid ();
+struct group *getgrgid (gid_t);
 #endif
 
 /* Interix has replacements for getgr{gid,nam,ent}, that don't
@@ -235,7 +235,7 @@ struct group *getgrgid ();
 #endif
 
 #if !HAVE_DECL_GETUID
-uid_t getuid ();
+uid_t getuid (void);
 #endif
 
 #include "xalloc.h"
@@ -515,7 +515,7 @@ is_nul (void const *buf, size_t length)
    to avoid -fsanitize=undefined warnings.
    Considering coreutils is mainly concerned with relatively
    large buffers, we'll just use the defined behavior.  */
-#if 0 && _STRING_ARCH_unaligned
+#if 0 && (_STRING_ARCH_unaligned || _STRING_INLINE_unaligned)
   unsigned long word;
 #else
   unsigned char word;
@@ -609,6 +609,24 @@ Otherwise, units default to 1024 bytes (or 512 if POSIXLY_CORRECT is set).\n\
 }
 
 static inline void
+emit_backup_suffix_note (void)
+{
+  fputs (_("\
+\n\
+The backup suffix is '~', unless set with --suffix or SIMPLE_BACKUP_SUFFIX.\n\
+The version control method may be selected via the --backup option or through\n\
+the VERSION_CONTROL environment variable.  Here are the values:\n\
+\n\
+"), stdout);
+  fputs (_("\
+  none, off       never make backups (even if --backup is given)\n\
+  numbered, t     make numbered backups\n\
+  existing, nil   numbered if numbered backups exist, simple otherwise\n\
+  simple, never   always make simple backups\n\
+"), stdout);
+}
+
+static inline void
 emit_ancillary_info (char const *program)
 {
   struct infomap { char const *program; char const *node; } const infomap[] = {
@@ -638,11 +656,11 @@ emit_ancillary_info (char const *program)
   if (lc_messages && STRNCMP_LIT (lc_messages, "en_"))
     {
       /* TRANSLATORS: Replace LANG_CODE in this URL with your language code
-         <http://translationproject.org/team/LANG_CODE.html> to form one of
-         the URLs at http://translationproject.org/team/.  Otherwise, replace
+         <https://translationproject.org/team/LANG_CODE.html> to form one of
+         the URLs at https://translationproject.org/team/.  Otherwise, replace
          the entire URL with your translation team's email address.  */
       printf (_("Report %s translation bugs to "
-                "<http://translationproject.org/team/>\n"), program);
+                "<https://translationproject.org/team/>\n"), program);
     }
   printf (_("Full documentation at: <%s%s>\n"),
           PACKAGE_URL, program);
@@ -763,3 +781,11 @@ is_ENOTSUP (int err)
   quotearg_style (shell_escape_always_quoting_style, arg)
 #define quoteaf_n(n, arg) \
   quotearg_n_style (n, shell_escape_always_quoting_style, arg)
+
+#ifndef FALLTHROUGH
+# if __GNUC__ < 7
+#  define FALLTHROUGH ((void) 0)
+# else
+#  define FALLTHROUGH __attribute__ ((__fallthrough__))
+# endif
+#endif

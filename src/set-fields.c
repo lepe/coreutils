@@ -1,5 +1,5 @@
 /* set-fields.c -- common functions for parsing field list
-   Copyright (C) 2015-2016 Free Software Foundation, Inc.
+   Copyright (C) 2015-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Extracted from cut.c by Assaf Gordon */
 
@@ -73,7 +73,6 @@ complement_rp (void)
 {
   struct field_range_pair *c = frp;
   size_t n = n_frp;
-  size_t i;
 
   frp = NULL;
   n_frp = 0;
@@ -82,7 +81,7 @@ complement_rp (void)
   if (c[0].lo > 1)
     add_range_pair (1, c[0].lo - 1);
 
-  for (i = 1; i < n; ++i)
+  for (size_t i = 1; i < n; ++i)
     {
       if (c[i-1].hi + 1 == c[i].lo)
         continue;
@@ -144,7 +143,6 @@ set_fields (const char *fieldstr, unsigned int options)
   bool rhs_specified = false;
   bool dash_found = false;	/* True if a '-' is found in this field.  */
 
-  size_t i;
   bool in_digits = false;
 
   /* Collect and store in RP the range end points. */
@@ -285,7 +283,7 @@ set_fields (const char *fieldstr, unsigned int options)
   qsort (frp, n_frp, sizeof (frp[0]), compare_ranges);
 
   /* Merge range pairs (e.g. `2-5,3-4' becomes `2-5'). */
-  for (i = 0; i < n_frp; ++i)
+  for (size_t i = 0; i < n_frp; ++i)
     {
       for (size_t j = i + 1; j < n_frp; ++j)
         {

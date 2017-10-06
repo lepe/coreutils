@@ -1,5 +1,5 @@
 /* stat.c -- display file or file system status
-   Copyright (C) 2001-2016 Free Software Foundation, Inc.
+   Copyright (C) 2001-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
    Written by Michael Meskes.  */
 
@@ -59,6 +59,8 @@
 #include "system.h"
 
 #include "areadlink.h"
+#include "argmatch.h"
+#include "die.h"
 #include "error.h"
 #include "file-type.h"
 #include "filemode.h"
@@ -90,6 +92,8 @@
 # define HAVE_STRUCT_STATXFS_F_TYPE HAVE_STRUCT_STATFS_F_TYPE
 # if HAVE_STRUCT_STATFS_F_NAMELEN
 #  define SB_F_NAMEMAX(S) ((S)->f_namelen)
+# elif HAVE_STRUCT_STATFS_F_NAMEMAX
+#  define SB_F_NAMEMAX(S) ((S)->f_namemax)
 # endif
 # define STATFS statfs
 # if HAVE_OS_H /* BeOS */
@@ -137,8 +141,9 @@ statfs (char const *filename, struct fs_info *buf)
 #ifdef SB_F_NAMEMAX
 # define OUT_NAMEMAX out_uint
 #else
-/* NetBSD 1.5.2 has neither f_namemax nor f_namelen.  */
-# define SB_F_NAMEMAX(S) "*"
+/* Depending on whether statvfs or statfs is used,
+   neither f_namemax or f_namelen may be available.  */
+# define SB_F_NAMEMAX(S) "?"
 # define OUT_NAMEMAX out_string
 #endif
 
@@ -245,6 +250,8 @@ human_fstype (STRUCT_STATVFS const *statfsbuf)
          a comment.  The S_MAGIC_... name and constant are automatically
          combined to produce the #define directives in fs.h.  */
 
+    case S_MAGIC_AAFS: /* 0x5A3C69F0 local */
+      return "aafs";
     case S_MAGIC_ACFS: /* 0x61636673 remote */
       return "acfs";
     case S_MAGIC_ADFS: /* 0xADF5 local */
@@ -262,6 +269,8 @@ human_fstype (STRUCT_STATVFS const *statfsbuf)
       return "aufs";
     case S_MAGIC_AUTOFS: /* 0x0187 local */
       return "autofs";
+    case S_MAGIC_BALLOON_KVM: /* 0x13661366 local */
+      return "balloon-kvm-fs";
     case S_MAGIC_BEFS: /* 0x42465331 local */
       return "befs";
     case S_MAGIC_BDEVFS: /* 0x62646576 local */
@@ -280,6 +289,8 @@ human_fstype (STRUCT_STATVFS const *statfsbuf)
       return "ceph";
     case S_MAGIC_CGROUP: /* 0x0027E0EB local */
       return "cgroupfs";
+    case S_MAGIC_CGROUP2: /* 0x63677270 local */
+      return "cgroup2fs";
     case S_MAGIC_CIFS: /* 0xFF534D42 remote */
       return "cifs";
     case S_MAGIC_CODA: /* 0x73757245 remote */
@@ -292,6 +303,8 @@ human_fstype (STRUCT_STATVFS const *statfsbuf)
       return "cramfs";
     case S_MAGIC_CRAMFS_WEND: /* 0x453DCD28 local */
       return "cramfs-wend";
+    case S_MAGIC_DAXFS: /* 0x64646178 local */
+      return "daxfs";
     case S_MAGIC_DEBUGFS: /* 0x64626720 local */
       return "debugfs";
     case S_MAGIC_DEVFS: /* 0x1373 local */
@@ -420,6 +433,8 @@ human_fstype (STRUCT_STATVFS const *statfsbuf)
       return "qnx6";
     case S_MAGIC_RAMFS: /* 0x858458F6 local */
       return "ramfs";
+    case S_MAGIC_RDTGROUP: /* 0x07655821 local */
+      return "rdt";
     case S_MAGIC_REISERFS: /* 0x52654973 local */
       return "reiserfs";
     case S_MAGIC_ROMFS: /* 0x7275 local */
@@ -484,6 +499,9 @@ human_fstype (STRUCT_STATVFS const *statfsbuf)
       return "xia";
     case S_MAGIC_ZFS: /* 0x2FC12FC1 local */
       return "zfs";
+    case S_MAGIC_ZSMALLOC: /* 0x58295829 local */
+      return "zsmallocfs";
+
 
 # elif __GNU__
     case FSTYPE_UFS:
@@ -807,8 +825,7 @@ print_statfs (char *pformat, size_t prefix_len, unsigned int m,
            with glibc's statvfs implementation.  */
         uintmax_t fsid = 0;
         int words = sizeof statfsbuf->f_fsid / sizeof *p;
-        int i;
-        for (i = 0; i < words && i * sizeof *p < sizeof fsid; i++)
+        for (int i = 0; i < words && i * sizeof *p < sizeof fsid; i++)
           {
             uintmax_t u = p[words - 1 - i];
             fsid |= u << (i * CHAR_BIT * sizeof *p);
@@ -996,6 +1013,32 @@ neg_to_zero (struct timespec ts)
   return z;
 }
 
+/* Set the quoting style default if the environment variable
+   QUOTING_STYLE is set.  */
+
+static void
+getenv_quoting_style (void)
+{
+  char const *q_style = getenv ("QUOTING_STYLE");
+  if (q_style)
+    {
+      int i = ARGMATCH (q_style, quoting_style_args, quoting_style_vals);
+      if (0 <= i)
+        set_quoting_style (NULL, quoting_style_vals[i]);
+      else
+        {
+          set_quoting_style (NULL, shell_escape_always_quoting_style);
+          error (0, 0, _("ignoring invalid value of environment "
+                         "variable QUOTING_STYLE: %s"), quote (q_style));
+        }
+    }
+  else
+    set_quoting_style (NULL, shell_escape_always_quoting_style);
+}
+
+/* Equivalent to quotearg(), but explicit to avoid syntax checks.  */
+#define quoteN(x) quotearg_style (get_quoting_style (NULL), x)
+
 /* Print stat info.  Return zero upon success, nonzero upon failure.  */
 static bool
 print_stat (char *pformat, size_t prefix_len, unsigned int m,
@@ -1012,7 +1055,7 @@ print_stat (char *pformat, size_t prefix_len, unsigned int m,
       out_string (pformat, prefix_len, filename);
       break;
     case 'N':
-      out_string (pformat, prefix_len, quoteaf (filename));
+      out_string (pformat, prefix_len, quoteN (filename));
       if (S_ISLNK (statbuf->st_mode))
         {
           char *linkname = areadlink_with_size (filename, statbuf->st_size);
@@ -1023,7 +1066,7 @@ print_stat (char *pformat, size_t prefix_len, unsigned int m,
               return true;
             }
           printf (" -> ");
-          out_string (pformat, prefix_len, quoteaf (linkname));
+          out_string (pformat, prefix_len, quoteN (linkname));
           free (linkname);
         }
       break;
@@ -1213,14 +1256,14 @@ print_it (char const *format, int fd, char const *filename,
               {
               case '\0':
                 --b;
-                /* fall through */
+                FALLTHROUGH;
               case '%':
                 if (0 < len)
                   {
                     dest[len + 1] = *fmt_char;
                     dest[len + 2] = '\0';
-                    error (EXIT_FAILURE, 0, _("%s: invalid directive"),
-                           quote (dest));
+                    die (EXIT_FAILURE, 0, _("%s: invalid directive"),
+                         quote (dest));
                   }
                 putchar ('%');
                 break;
@@ -1538,7 +1581,6 @@ int
 main (int argc, char *argv[])
 {
   int c;
-  int i;
   bool fs = false;
   bool terse = false;
   char *format = NULL;
@@ -1601,14 +1643,18 @@ main (int argc, char *argv[])
     }
 
   if (format)
-    format2 = format;
+    {
+      if (strstr (format, "%N"))
+        getenv_quoting_style ();
+      format2 = format;
+    }
   else
     {
-      format = default_format (fs, terse, false);
-      format2 = default_format (fs, terse, true);
+      format = default_format (fs, terse, /* device= */ false);
+      format2 = default_format (fs, terse, /* device= */ true);
     }
 
-  for (i = optind; i < argc; i++)
+  for (int i = optind; i < argc; i++)
     ok &= (fs
            ? do_statfs (argv[i], format)
            : do_stat (argv[i], format, format2));

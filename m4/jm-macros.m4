@@ -1,8 +1,8 @@
-#serial 110   -*- autoconf -*-
+#serial 111   -*- autoconf -*-
 
 dnl Misc type-related macros for coreutils.
 
-# Copyright (C) 1998-2016 Free Software Foundation, Inc.
+# Copyright (C) 1998-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@ dnl Misc type-related macros for coreutils.
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Written by Jim Meyering.
 
@@ -207,6 +207,7 @@ AC_DEFUN([gl_CHECK_ALL_HEADERS],
   AC_CHECK_HEADERS_ONCE([
     hurd.h
     linux/falloc.h
+    linux/fs.h
     paths.h
     priv.h
     stropts.h

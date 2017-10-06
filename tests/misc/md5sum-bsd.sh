@@ -2,7 +2,7 @@
 # 'md5sum' tests for generation and checking of
 # BSD traditional and alternate formats (md5 [-r])
 
-# Copyright (C) 2011-2016 Free Software Foundation, Inc.
+# Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ md5sum
@@ -28,13 +28,20 @@ print_ver_ md5sum
 # I.e., one not starting with ' ' or '*'
 for i in 'a' ' b' '*c' 'dd' ' '; do
   echo "$i" > "$i"
-  md5sum "$i" >> check.md5sum
+  md5sum "$i" >> check.md5sum || fail=1
 done
 sed 's/  / /' check.md5sum > check.md5
 
 # Note only a single format is supported per run
 md5sum --strict -c check.md5sum || fail=1
 md5sum --strict -c check.md5 || fail=1
+
+# Ensure we don't trigger BSD reversed format with GPG headers etc.
+{ echo '____not_all_hex_so_no_match_____ blah';
+  cat check.md5sum; } > check2.md5sum || framework_failure_
+md5sum -c check2.md5sum 2>check2.err || fail=1
+echo 'md5sum: WARNING: 1 line is improperly formatted' >check2.exp
+compare check2.exp check2.err || fail=1
 
 # If we skip the first entry in the BSD format checksums
 # then it'll be detected as standard format and error.
@@ -59,7 +66,7 @@ returns_ 1 md5sum --tag --text /dev/null || fail=1
 rm check.md5
 for i in 'a' ' b' '*c' 'dd' ' '; do
   echo "$i" > "$i"
-  md5sum --tag "$i" >> check.md5
+  md5sum --tag "$i" >> check.md5 || fail=1
 done
 md5sum --strict -c check.md5 || fail=1
 
@@ -70,8 +77,8 @@ nl='
 tab='	'
 rm check.md5
 for i in 'a\b' 'a\' "a${nl}b" "a${tab}b"; do
-  > "$i"
-  md5sum --tag "$i" >> check.md5
+  : > "$i"
+  md5sum --tag "$i" >> check.md5 || fail=1
 done
 md5sum --strict -c check.md5 || fail=1
 
@@ -82,7 +89,7 @@ ex_file='test
 ex_output='\MD5 (test\n\\\\file) = d41d8cd98f00b204e9800998ecf8427e'
 touch "$ex_file"
 printf "%s\n" "$ex_output" > exp
-md5sum --tag "$ex_file" > out
+md5sum --tag "$ex_file" > out || fail=1
 compare exp out || fail=1
 
 Exit $fail

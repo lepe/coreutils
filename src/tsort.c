@@ -1,5 +1,5 @@
 /* tsort - topological sort.
-   Copyright (C) 1998-2016 Free Software Foundation, Inc.
+   Copyright (C) 1998-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Mark Kettenis <kettenis@phys.uva.nl>.  */
 
@@ -28,6 +28,7 @@
 
 #include "system.h"
 #include "long-options.h"
+#include "die.h"
 #include "error.h"
 #include "fadvise.h"
 #include "readtokens.h"
@@ -445,7 +446,7 @@ tsort (const char *file)
   root = new_item (NULL);
 
   if (!is_stdin && ! freopen (file, "r", stdin))
-    error (EXIT_FAILURE, errno, "%s", quotef (file));
+    die (EXIT_FAILURE, errno, "%s", quotef (file));
 
   fadvise (stdin, FADVISE_SEQUENTIAL);
 
@@ -472,8 +473,8 @@ tsort (const char *file)
     }
 
   if (k != NULL)
-    error (EXIT_FAILURE, 0, _("%s: input contains an odd number of tokens"),
-           quotef (file));
+    die (EXIT_FAILURE, 0, _("%s: input contains an odd number of tokens"),
+         quotef (file));
 
   /* T1. Initialize (N <- n).  */
   walk_tree (root, count_items);
@@ -531,8 +532,8 @@ tsort (const char *file)
   IF_LINT (free (root));
 
   if (fclose (stdin) != 0)
-    error (EXIT_FAILURE, errno, "%s",
-           is_stdin ? _("standard input") : quotef (file));
+    die (EXIT_FAILURE, errno, "%s",
+         is_stdin ? _("standard input") : quotef (file));
 
   return ok;
 }

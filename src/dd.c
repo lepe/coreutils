@@ -1,5 +1,5 @@
 /* dd -- convert a file while copying it.
-   Copyright (C) 1985-2016 Free Software Foundation, Inc.
+   Copyright (C) 1985-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Paul Rubin, David MacKenzie, and Stuart Kemp. */
 
@@ -26,6 +26,7 @@
 
 #include "system.h"
 #include "close-stream.h"
+#include "die.h"
 #include "error.h"
 #include "fd-reopen.h"
 #include "gethrxtime.h"
@@ -559,7 +560,8 @@ Usage: %s [OPERAND]...\n\
       fputs (_("\
 Copy a file, converting and formatting according to the operands.\n\
 \n\
-  bs=BYTES        read and write up to BYTES bytes at a time\n\
+  bs=BYTES        read and write up to BYTES bytes at a time (default: 512);\n\
+                  overrides ibs and obs\n\
   cbs=BYTES       convert BYTES bytes at a time\n\
   conv=CONVS      convert the file as per the comma separated symbol list\n\
   count=N         copy only N input blocks\n\
@@ -692,12 +694,11 @@ alloc_ibuf (void)
     {
       uintmax_t ibs = input_blocksize;
       char hbuf[LONGEST_HUMAN_READABLE + 1];
-      error (EXIT_FAILURE, 0,
-             _("memory exhausted by input buffer of size %"PRIuMAX
-               " bytes (%s)"),
-             ibs,
-             human_readable (input_blocksize, hbuf,
-                             human_opts | human_base_1024, 1, 1));
+      die (EXIT_FAILURE, 0,
+           _("memory exhausted by input buffer of size %"PRIuMAX" bytes (%s)"),
+           ibs,
+           human_readable (input_blocksize, hbuf,
+                           human_opts | human_base_1024, 1, 1));
     }
 
   real_buf += SWAB_ALIGN_OFFSET;	/* allow space for swab */
@@ -721,12 +722,12 @@ alloc_obuf (void)
         {
           uintmax_t obs = output_blocksize;
           char hbuf[LONGEST_HUMAN_READABLE + 1];
-          error (EXIT_FAILURE, 0,
-                 _("memory exhausted by output buffer of size %"PRIuMAX
-                   " bytes (%s)"),
-                 obs,
-                 human_readable (output_blocksize, hbuf,
-                                 human_opts | human_base_1024, 1, 1));
+          die (EXIT_FAILURE, 0,
+               _("memory exhausted by output buffer of size %"PRIuMAX
+                 " bytes (%s)"),
+               obs,
+               human_readable (output_blocksize, hbuf,
+                               human_opts | human_base_1024, 1, 1));
         }
       obuf = ptr_align (real_obuf, page_size);
     }
@@ -740,9 +741,7 @@ alloc_obuf (void)
 static void
 translate_charset (char const *new_trans)
 {
-  int i;
-
-  for (i = 0; i < 256; i++)
+  for (int i = 0; i < 256; i++)
     trans_table[i] = new_trans[trans_table[i]];
   translation_needed = true;
 }
@@ -767,7 +766,8 @@ static void
 print_xfer_stats (xtime_t progress_time)
 {
   xtime_t now = progress_time ? progress_time : gethrxtime ();
-  char hbuf[3][LONGEST_HUMAN_READABLE + 1];
+  static char const slash_s[] = "/s";
+  char hbuf[3][LONGEST_HUMAN_READABLE + sizeof slash_s];
   double delta_s;
   char const *bytes_per_second;
   char const *si = human_readable (w_bytes, hbuf[0], human_opts, 1, 1);
@@ -776,50 +776,60 @@ print_xfer_stats (xtime_t progress_time)
 
   /* Use integer arithmetic to compute the transfer rate,
      since that makes it easy to use SI abbreviations.  */
+  char *bpsbuf = hbuf[2];
+  int bpsbufsize = sizeof hbuf[2];
   if (start_time < now)
     {
       double XTIME_PRECISIONe0 = XTIME_PRECISION;
       uintmax_t delta_xtime = now;
       delta_xtime -= start_time;
       delta_s = delta_xtime / XTIME_PRECISIONe0;
-      bytes_per_second = human_readable (w_bytes, hbuf[2], human_opts,
+      bytes_per_second = human_readable (w_bytes, bpsbuf, human_opts,
                                          XTIME_PRECISION, delta_xtime);
+      strcat (bytes_per_second - bpsbuf + bpsbuf, slash_s);
     }
   else
     {
       delta_s = 0;
-      bytes_per_second = _("Infinity B");
+      snprintf (bpsbuf, bpsbufsize, "%s B/s", _("Infinity"));
+      bytes_per_second = bpsbuf;
     }
 
   if (progress_time)
     fputc ('\r', stderr);
 
-  /* TRANSLATORS: The instances of "s" in the following formats are
-     the SI symbol "s" (meaning second), and should not be translated.
-     The strings use SI symbols for better internationalization even
-     though they may be a bit more confusing in English.  If one of
-     these formats A looks shorter on the screen than another format
-     B, then A's string length should be less than B's, and appending
-     strlen (B) - strlen (A) spaces to A should make it appear to be
-     at least as long as B.  */
+  /* Use full seconds when printing progress, since the progress
+     report is output once per second and there is little point
+     displaying any subsecond jitter.  Use default precision with %g
+     otherwise, as this provides more-useful output then.  With long
+     transfers %g can generate a number with an exponent; that is OK.  */
+  char delta_s_buf[24];
+  snprintf (delta_s_buf, sizeof delta_s_buf,
+            progress_time ? "%.0f s" : "%g s", delta_s);
 
   int stats_len
     = (abbreviation_lacks_prefix (si)
        ? fprintf (stderr,
-                  ngettext ("%"PRIuMAX" byte copied, %g s, %s/s",
-                            "%"PRIuMAX" bytes copied, %g s, %s/s",
+                  ngettext ("%"PRIuMAX" byte copied, %s, %s",
+                            "%"PRIuMAX" bytes copied, %s, %s",
                             select_plural (w_bytes)),
-                  w_bytes, delta_s, bytes_per_second)
+                  w_bytes, delta_s_buf, bytes_per_second)
        : abbreviation_lacks_prefix (iec)
        ? fprintf (stderr,
-                  _("%"PRIuMAX" bytes (%s) copied, %g s, %s/s"),
-                  w_bytes, si, delta_s, bytes_per_second)
+                  _("%"PRIuMAX" bytes (%s) copied, %s, %s"),
+                  w_bytes, si, delta_s_buf, bytes_per_second)
        : fprintf (stderr,
-                  _("%"PRIuMAX" bytes (%s, %s) copied, %g s, %s/s"),
-                  w_bytes, si, iec, delta_s, bytes_per_second));
+                  _("%"PRIuMAX" bytes (%s, %s) copied, %s, %s"),
+                  w_bytes, si, iec, delta_s_buf, bytes_per_second));
 
   if (progress_time)
     {
+      /* Erase any trailing junk on the output line by outputting
+         spaces.  In theory this could glitch the display because the
+         formatted translation of a line describing a larger file
+         could consume fewer screen columns than the strlen difference
+         from the previously formatted translation.  In practice this
+         does not seem to be a problem.  */
       if (0 <= stats_len && stats_len < progress_len)
         fprintf (stderr, "%*s", progress_len - stats_len, "");
       progress_len = stats_len;
@@ -932,15 +942,14 @@ static void
 cleanup (void)
 {
   if (close (STDIN_FILENO) < 0)
-    error (EXIT_FAILURE, errno,
-           _("closing input file %s"), quoteaf (input_file));
+    die (EXIT_FAILURE, errno, _("closing input file %s"), quoteaf (input_file));
 
   /* Don't remove this call to close, even though close_stdout
      closes standard output.  This close is necessary when cleanup
      is called as part of a signal handler.  */
   if (close (STDOUT_FILENO) < 0)
-    error (EXIT_FAILURE, errno,
-           _("closing output file %s"), quoteaf (output_file));
+    die (EXIT_FAILURE, errno,
+         _("closing output file %s"), quoteaf (output_file));
 }
 
 /* Process any pending signals.  If signals are caught, this function
@@ -1343,6 +1352,12 @@ parse_integer (const char *str, strtol_error *invalid)
           return 0;
         }
 
+      if (n == 0 && STRPREFIX (str, "0x"))
+        error (0, 0,
+               _("warning: %s is a zero multiplier; "
+                 "use %s if that is intended"),
+               quote_n (0, "0x"), quote_n (1, "00x"));
+
       n *= multiplier;
     }
   else if (e != LONGINT_OK)
@@ -1365,13 +1380,12 @@ operand_is (char const *operand, char const *name)
 static void
 scanargs (int argc, char *const *argv)
 {
-  int i;
   size_t blocksize = 0;
   uintmax_t count = (uintmax_t) -1;
   uintmax_t skip = 0;
   uintmax_t seek = 0;
 
-  for (i = optind; i < argc; i++)
+  for (int i = optind; i < argc; i++)
     {
       char const *name = argv[i];
       char const *val = strchr (name, '=');
@@ -1450,8 +1464,8 @@ scanargs (int argc, char *const *argv)
             invalid = LONGINT_OVERFLOW;
 
           if (invalid != LONGINT_OK)
-            error (EXIT_FAILURE, invalid == LONGINT_OVERFLOW ? EOVERFLOW : 0,
-                   "%s: %s", _("invalid number"), quote (val));
+            die (EXIT_FAILURE, invalid == LONGINT_OVERFLOW ? EOVERFLOW : 0,
+                 "%s: %s", _("invalid number"), quote (val));
         }
     }
 
@@ -1534,16 +1548,16 @@ scanargs (int argc, char *const *argv)
   input_flags &= ~O_FULLBLOCK;
 
   if (multiple_bits_set (conversions_mask & (C_ASCII | C_EBCDIC | C_IBM)))
-    error (EXIT_FAILURE, 0, _("cannot combine any two of {ascii,ebcdic,ibm}"));
+    die (EXIT_FAILURE, 0, _("cannot combine any two of {ascii,ebcdic,ibm}"));
   if (multiple_bits_set (conversions_mask & (C_BLOCK | C_UNBLOCK)))
-    error (EXIT_FAILURE, 0, _("cannot combine block and unblock"));
+    die (EXIT_FAILURE, 0, _("cannot combine block and unblock"));
   if (multiple_bits_set (conversions_mask & (C_LCASE | C_UCASE)))
-    error (EXIT_FAILURE, 0, _("cannot combine lcase and ucase"));
+    die (EXIT_FAILURE, 0, _("cannot combine lcase and ucase"));
   if (multiple_bits_set (conversions_mask & (C_EXCL | C_NOCREAT)))
-    error (EXIT_FAILURE, 0, _("cannot combine excl and nocreat"));
+    die (EXIT_FAILURE, 0, _("cannot combine excl and nocreat"));
   if (multiple_bits_set (input_flags & (O_DIRECT | O_NOCACHE))
       || multiple_bits_set (output_flags & (O_DIRECT | O_NOCACHE)))
-    error (EXIT_FAILURE, 0, _("cannot combine direct and nocache"));
+    die (EXIT_FAILURE, 0, _("cannot combine direct and nocache"));
 
   if (input_flags & O_NOCACHE)
     {
@@ -1600,9 +1614,8 @@ apply_translations (void)
 static void
 translate_buffer (char *buf, size_t nread)
 {
-  char *cp;
   size_t i;
-
+  char *cp;
   for (i = nread, cp = buf; i; i--, cp++)
     *cp = trans_table[to_uchar (*cp)];
 }
@@ -1622,8 +1635,6 @@ static char *
 swab_buffer (char *buf, size_t *nread)
 {
   char *bufstart = buf;
-  char *cp;
-  size_t i;
 
   /* Is a char left from last time?  */
   if (char_is_saved)
@@ -1644,8 +1655,8 @@ swab_buffer (char *buf, size_t *nread)
      positions toward the end, working from the end of the buffer
      toward the beginning.  This way we only move half of the data.  */
 
-  cp = bufstart + *nread;	/* Start one char past the last.  */
-  for (i = *nread / 2; i; i--, cp -= 2)
+  char *cp = bufstart + *nread;	/* Start one char past the last.  */
+  for (size_t i = *nread / 2; i; i--, cp -= 2)
     *cp = *(cp - 2);
 
   return ++bufstart;
@@ -1742,7 +1753,7 @@ skip (int fdesc, char const *file, uintmax_t records, size_t blocksize,
         {
            struct stat st;
            if (fstat (STDIN_FILENO, &st) != 0)
-             error (EXIT_FAILURE, errno, _("cannot fstat %s"), quoteaf (file));
+             die (EXIT_FAILURE, errno, _("cannot fstat %s"), quoteaf (file));
            if (usable_st_size (&st) && st.st_size < input_offset + offset)
              {
                /* When skipping past EOF, return the number of _full_ blocks
@@ -1916,9 +1927,7 @@ copy_simple (char const *buf, size_t nread)
 static void
 copy_with_block (char const *buf, size_t nread)
 {
-  size_t i;
-
-  for (i = nread; i; i--, buf++)
+  for (size_t i = nread; i; i--, buf++)
     {
       if (*buf == newline_character)
         {
@@ -1948,13 +1957,11 @@ copy_with_block (char const *buf, size_t nread)
 static void
 copy_with_unblock (char const *buf, size_t nread)
 {
-  size_t i;
-  char c;
   static size_t pending_spaces = 0;
 
-  for (i = 0; i < nread; i++)
+  for (size_t i = 0; i < nread; i++)
     {
-      c = buf[i];
+      char c = buf[i];
 
       if (col++ >= conversion_blocksize)
         {
@@ -2022,7 +2029,7 @@ set_fd_flags (int fd, int add_flags, char const *name)
         }
 
       if (!ok)
-        error (EXIT_FAILURE, errno, _("setting flags for %s"), quoteaf (name));
+        die (EXIT_FAILURE, errno, _("setting flags for %s"), quoteaf (name));
     }
 }
 
@@ -2258,8 +2265,7 @@ dd_copy (void)
     {
       /* If the final input line didn't end with a '\n', pad
          the output block to 'conversion_blocksize' chars.  */
-      size_t i;
-      for (i = col; i < conversion_blocksize; i++)
+      for (size_t i = col; i < conversion_blocksize; i++)
         output_char (space_character);
     }
 
@@ -2375,8 +2381,8 @@ main (int argc, char **argv)
   else
     {
       if (ifd_reopen (STDIN_FILENO, input_file, O_RDONLY | input_flags, 0) < 0)
-        error (EXIT_FAILURE, errno, _("failed to open %s"),
-               quoteaf (input_file));
+        die (EXIT_FAILURE, errno, _("failed to open %s"),
+             quoteaf (input_file));
     }
 
   offset = lseek (STDIN_FILENO, 0, SEEK_CUR);
@@ -2405,8 +2411,8 @@ main (int argc, char **argv)
            || ifd_reopen (STDOUT_FILENO, output_file, O_RDWR | opts, perms) < 0)
           && (ifd_reopen (STDOUT_FILENO, output_file, O_WRONLY | opts, perms)
               < 0))
-        error (EXIT_FAILURE, errno, _("failed to open %s"),
-               quoteaf (output_file));
+        die (EXIT_FAILURE, errno, _("failed to open %s"),
+             quoteaf (output_file));
 
       if (seek_records != 0 && !(conversions_mask & C_NOTRUNC))
         {
@@ -2414,11 +2420,11 @@ main (int argc, char **argv)
           unsigned long int obs = output_blocksize;
 
           if (OFF_T_MAX / output_blocksize < seek_records)
-            error (EXIT_FAILURE, 0,
-                   _("offset too large: "
-                     "cannot truncate to a length of seek=%"PRIuMAX""
-                     " (%lu-byte) blocks"),
-                   seek_records, obs);
+            die (EXIT_FAILURE, 0,
+                 _("offset too large: "
+                   "cannot truncate to a length of seek=%"PRIuMAX""
+                   " (%lu-byte) blocks"),
+                 seek_records, obs);
 
           if (iftruncate (STDOUT_FILENO, size) != 0)
             {
@@ -2430,15 +2436,15 @@ main (int argc, char **argv)
               int ftruncate_errno = errno;
               struct stat stdout_stat;
               if (fstat (STDOUT_FILENO, &stdout_stat) != 0)
-                error (EXIT_FAILURE, errno, _("cannot fstat %s"),
-                       quoteaf (output_file));
+                die (EXIT_FAILURE, errno, _("cannot fstat %s"),
+                     quoteaf (output_file));
               if (S_ISREG (stdout_stat.st_mode)
                   || S_ISDIR (stdout_stat.st_mode)
                   || S_TYPEISSHM (&stdout_stat))
-                error (EXIT_FAILURE, ftruncate_errno,
-                       _("failed to truncate to %"PRIuMAX" bytes"
-                         " in output file %s"),
-                       size, quoteaf (output_file));
+                die (EXIT_FAILURE, ftruncate_errno,
+                     _("failed to truncate to %"PRIuMAX" bytes"
+                       " in output file %s"),
+                     size, quoteaf (output_file));
             }
         }
     }

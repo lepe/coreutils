@@ -1,7 +1,7 @@
 #!/bin/sh
 # Test "nice".
 
-# Copyright (C) 2002-2016 Free Software Foundation, Inc.
+# Copyright (C) 2002-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ nice
@@ -79,8 +79,7 @@ if test x$(nice -n -1 nice 2> /dev/null) = x0 ; then
   compare exp err || fail=1
   # Failure to write advisory message is fatal.  Buggy through coreutils 8.0.
   if test -w /dev/full && test -c /dev/full; then
-    nice -n -1 nice > out 2> /dev/full
-    test $? = 125 || fail=1
+    returns_ 125 nice -n -1 nice > out 2> /dev/full || fail=1
     compare /dev/null out || fail=1
   fi
 else

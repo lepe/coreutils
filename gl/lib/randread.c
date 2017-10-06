@@ -1,6 +1,6 @@
 /* Generate buffers of random data.
 
-   Copyright (C) 2006-2016 Free Software Foundation, Inc.
+   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Paul Eggert.  */
 
@@ -60,7 +60,7 @@
 # define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-#if _STRING_ARCH_unaligned
+#if _STRING_ARCH_unaligned || _STRING_INLINE_unaligned
 # define ALIGNED_POINTER(ptr, type) true
 #else
 # define ALIGNED_POINTER(ptr, type) ((size_t) (ptr) % alignof (type) == 0)
@@ -341,7 +341,7 @@ int
 randread_free (struct randread_source *s)
 {
   FILE *source = s->source;
-  memset (s, 0, sizeof *s);
+  explicit_bzero (s, sizeof *s);
   free (s);
   return (source ? fclose (source) : 0);
 }

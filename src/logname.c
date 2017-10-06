@@ -1,5 +1,5 @@
 /* logname -- print user's login name
-   Copyright (C) 1990-2016 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <config.h>
 #include <stdio.h>
@@ -20,6 +20,7 @@
 #include <getopt.h>
 
 #include "system.h"
+#include "die.h"
 #include "error.h"
 #include "long-options.h"
 #include "quote.h"
@@ -76,7 +77,7 @@ main (int argc, char **argv)
      using a fallback technique.  */
   cp = getlogin ();
   if (! cp)
-    error (EXIT_FAILURE, 0, _("no login name"));
+    die (EXIT_FAILURE, 0, _("no login name"));
 
   puts (cp);
   return EXIT_SUCCESS;

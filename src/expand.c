@@ -1,5 +1,5 @@
 /* expand - convert tabs to spaces
-   Copyright (C) 1989-2016 Free Software Foundation, Inc.
+   Copyright (C) 1989-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* By default, convert all tabs to spaces.
    Preserves backspace characters in the output; they decrement the
@@ -38,7 +38,7 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include "system.h"
-#include "error.h"
+#include "die.h"
 #include "xstrndup.h"
 
 #include "expand-common.h"
@@ -78,12 +78,10 @@ Convert tabs in each FILE to spaces, writing to standard output.\n\
       emit_mandatory_arg_note ();
 
       fputs (_("\
-  -i, --initial       do not convert tabs after non blanks\n\
-  -t, --tabs=NUMBER   have tabs NUMBER characters apart, not 8\n\
+  -i, --initial    do not convert tabs after non blanks\n\
+  -t, --tabs=N     have tabs N characters apart, not 8\n\
 "), stdout);
-      fputs (_("\
-  -t, --tabs=LIST     use comma separated list of explicit tab positions\n\
-"), stdout);
+      emit_tab_list_info ();
       fputs (HELP_OPTION_DESCRIPTION, stdout);
       fputs (VERSION_OPTION_DESCRIPTION, stdout);
       emit_ancillary_info (PROGRAM_NAME);
@@ -145,11 +143,11 @@ expand (void)
                     next_tab_column = column + 1;
 
                   if (next_tab_column < column)
-                    error (EXIT_FAILURE, 0, _("input line is too long"));
+                    die (EXIT_FAILURE, 0, _("input line is too long"));
 
                   while (++column < next_tab_column)
                     if (putchar (' ') < 0)
-                      error (EXIT_FAILURE, errno, _("write error"));
+                      die (EXIT_FAILURE, errno, _("write error"));
 
                   c = ' ';
                 }
@@ -164,7 +162,7 @@ expand (void)
                 {
                   column++;
                   if (!column)
-                    error (EXIT_FAILURE, 0, _("input line is too long"));
+                    die (EXIT_FAILURE, 0, _("input line is too long"));
                 }
 
               convert &= convert_entire_line || !! isblank (c);
@@ -174,7 +172,7 @@ expand (void)
             return;
 
           if (putchar (c) < 0)
-            error (EXIT_FAILURE, errno, _("write error"));
+            die (EXIT_FAILURE, errno, _("write error"));
         }
       while (c != '\n');
     }

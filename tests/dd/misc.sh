@@ -2,7 +2,7 @@
 # Ensure dd treats '--' properly.
 # Also test some flag values.
 
-# Copyright (C) 1999-2016 Free Software Foundation, Inc.
+# Copyright (C) 1999-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ dd
@@ -106,5 +106,15 @@ compare out_ok out || fail=1
 compare err_ok err || fail=1
 
 test $fail -eq 0 && fail=$warn
+
+# Check a warning is issued for ambiguous 0x... numbers
+dd if=/dev/null count=0x1 seek=0x1 skip=0x1 status=none 2>err || fail=1
+cat <<\EOF >exp
+dd: warning: '0x' is a zero multiplier; use '00x' if that is intended
+dd: warning: '0x' is a zero multiplier; use '00x' if that is intended
+dd: warning: '0x' is a zero multiplier; use '00x' if that is intended
+EOF
+compare exp err || fail=1
+
 
 Exit $fail

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Trigger a failed assertion in coreutils-8.9 and earlier.
 
-# Copyright (C) 2011-2016 Free Software Foundation, Inc.
+# Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ du
@@ -88,9 +88,8 @@ retry_delay_ nonempty .1 5 || fail=1
 # and when it triggers, moves the parent, $t/3/a, up one level
 # so it's directly under $t.
 
-du -a $t d2 2> err
 # Before coreutils-8.10, du would abort.
-test $? = 1 || fail=1
+returns_ 1 du -a $t d2 2> err || fail=1
 
 # check for the new diagnostic
 printf "du: fts_read failed: $t/3/a/b: No such file or directory\n" > exp \

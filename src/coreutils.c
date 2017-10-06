@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2016 Free Software Foundation, Inc.
+/* Copyright (C) 2014-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* coreutils.c aggregates the functionality of every other tool into a single
    binary multiplexed by the value of argv[0]. This is enabled by passing
@@ -27,6 +27,7 @@
 #endif
 
 #include "system.h"
+#include "die.h"
 #include "error.h"
 #include "quote.h"
 
@@ -174,8 +175,8 @@ main (int argc, char **argv)
         {
           argv[nskip] = arg_name; /* XXX: Discards any specified path.  */
           launch_program (prog_name, argc - nskip, argv + nskip);
-          error (EXIT_FAILURE, 0, _("unknown program %s"),
-                 quote (prog_name));
+          die (EXIT_FAILURE, 0, _("unknown program %s"),
+               quote (prog_name));
         }
     }
 

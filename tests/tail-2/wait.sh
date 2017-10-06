@@ -2,7 +2,7 @@
 # Make sure that 'tail -f' returns immediately if a file doesn't exist
 # while 'tail -F' waits for it to appear.
 
-# Copyright (C) 2003-2016 Free Software Foundation, Inc.
+# Copyright (C) 2003-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ tail
@@ -35,29 +35,23 @@ cleanup_() { kill $pid 2>/dev/null && wait $pid; }
 fastpoll='-s.1 --max-unchanged-stats=1'
 
 for mode in '' '---disable-inotify'; do
-  timeout 10 tail $fastpoll -f $mode not_here
-  test $? = 124 && fail=1
+  returns_ 124 timeout 10 tail $fastpoll -f $mode not_here && fail=1
 
   if test ! -r unreadable; then # can't test this when root
-    timeout 10 tail $fastpoll -f $mode unreadable
-    test $? = 124 && fail=1
+    returns_ 124 timeout 10 tail $fastpoll -f $mode unreadable && fail=1
   fi
 
-  timeout .1 tail $fastpoll -f $mode here 2>tail.err
-  test $? = 124 || fail=1
+  returns_ 124 timeout .1 tail $fastpoll -f $mode here 2>tail.err || fail=1
 
   # 'tail -F' must wait in any case.
 
-  timeout .1 tail $fastpoll -F $mode here 2>>tail.err
-  test $? = 124 || fail=1
+  returns_ 124 timeout .1 tail $fastpoll -F $mode here 2>>tail.err || fail=1
 
   if test ! -r unreadable; then # can't test this when root
-    timeout .1 tail $fastpoll -F $mode unreadable
-    test $? = 124 || fail=1
+    returns_ 124 timeout .1 tail $fastpoll -F $mode unreadable || fail=1
   fi
 
-  timeout .1 tail $fastpoll -F $mode not_here
-  test $? = 124 || fail=1
+  returns_ 124 timeout .1 tail $fastpoll -F $mode not_here || fail=1
 
   grep -Ev "$inotify_failed_re" tail.err > x
   mv x tail.err

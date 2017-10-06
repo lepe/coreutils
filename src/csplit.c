@@ -1,5 +1,5 @@
 /* csplit - split a file into sections determined by context lines
-   Copyright (C) 1991-2016 Free Software Foundation, Inc.
+   Copyright (C) 1991-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Stuart Kemp, cpsrk@groper.jcu.edu.au.
    Modified by David MacKenzie, djm@gnu.ai.mit.edu. */
@@ -28,6 +28,7 @@
 
 #include <regex.h>
 
+#include "die.h"
 #include "error.h"
 #include "fd-reopen.h"
 #include "quote.h"
@@ -541,7 +542,7 @@ static uintmax_t
 get_first_line_in_buffer (void)
 {
   if (head == NULL && !load_buffer ())
-    error (EXIT_FAILURE, errno, _("input disappeared"));
+    die (EXIT_FAILURE, errno, _("input disappeared"));
 
   return head->first_available;
 }
@@ -651,8 +652,8 @@ static void
 set_input_file (const char *name)
 {
   if (! STREQ (name, "-") && fd_reopen (STDIN_FILENO, name, O_RDONLY, 0) < 0)
-    error (EXIT_FAILURE, errno, _("cannot open %s for reading"),
-           quoteaf (name));
+    die (EXIT_FAILURE, errno, _("cannot open %s for reading"),
+         quoteaf (name));
 }
 
 /* Write all lines from the beginning of the buffer up to, but
@@ -899,9 +900,7 @@ process_regexp (struct control *p, uintmax_t repetition)
 static void
 split_file (void)
 {
-  size_t i;
-
-  for (i = 0; i < control_used; i++)
+  for (size_t i = 0; i < control_used; i++)
     {
       uintmax_t j;
       if (controls[i].regexpr)
@@ -982,12 +981,10 @@ create_output_file (void)
 static void
 delete_all_files (bool in_signal_handler)
 {
-  unsigned int i;
-
   if (! remove_files)
     return;
 
-  for (i = 0; i < files_created; i++)
+  for (unsigned int i = 0; i < files_created; i++)
     {
       const char *name = make_filename (i);
       if (unlink (name) != 0 && !in_signal_handler)
@@ -1089,8 +1086,8 @@ static void
 check_for_offset (struct control *p, const char *str, const char *num)
 {
   if (xstrtoimax (num, NULL, 10, &p->offset, "") != LONGINT_OK)
-    error (EXIT_FAILURE, 0, _("%s: integer expected after delimiter"),
-           quote (str));
+    die (EXIT_FAILURE, 0, _("%s: integer expected after delimiter"),
+         quote (str));
 }
 
 /* Given that the first character of command line arg STR is '{',
@@ -1106,8 +1103,8 @@ parse_repeat_count (int argnum, struct control *p, char *str)
 
   end = str + strlen (str) - 1;
   if (*end != '}')
-    error (EXIT_FAILURE, 0, _("%s: '}' is required in repeat count"),
-           quote (str));
+    die (EXIT_FAILURE, 0, _("%s: '}' is required in repeat count"),
+         quote (str));
   *end = '\0';
 
   if (str+1 == end-1 && *(str+1) == '*')
@@ -1116,9 +1113,9 @@ parse_repeat_count (int argnum, struct control *p, char *str)
     {
       if (xstrtoumax (str + 1, NULL, 10, &val, "") != LONGINT_OK)
         {
-          error (EXIT_FAILURE, 0,
-                 _("%s}: integer required between '{' and '}'"),
-                 quote (global_argv[argnum]));
+          die (EXIT_FAILURE, 0,
+               _("%s}: integer required between '{' and '}'"),
+               quote (global_argv[argnum]));
         }
       p->repeat = val;
     }
@@ -1143,8 +1140,8 @@ extract_regexp (int argnum, bool ignore, char const *str)
 
   closing_delim = strrchr (str + 1, delim);
   if (closing_delim == NULL)
-    error (EXIT_FAILURE, 0,
-           _("%s: closing delimiter '%c' missing"), str, delim);
+    die (EXIT_FAILURE, 0,
+         _("%s: closing delimiter '%c' missing"), str, delim);
 
   len = closing_delim - str - 1;
   p = new_control_record ();
@@ -1177,12 +1174,11 @@ extract_regexp (int argnum, bool ignore, char const *str)
 static void
 parse_patterns (int argc, int start, char **argv)
 {
-  int i;			/* Index into ARGV. */
   struct control *p;		/* New control record created. */
   uintmax_t val;
   static uintmax_t last_val = 0;
 
-  for (i = start; i < argc; i++)
+  for (int i = start; i < argc; i++)
     {
       if (*argv[i] == '/' || *argv[i] == '%')
         {
@@ -1194,17 +1190,16 @@ parse_patterns (int argc, int start, char **argv)
           p->argnum = i;
 
           if (xstrtoumax (argv[i], NULL, 10, &val, "") != LONGINT_OK)
-            error (EXIT_FAILURE, 0, _("%s: invalid pattern"), quote (argv[i]));
+            die (EXIT_FAILURE, 0, _("%s: invalid pattern"), quote (argv[i]));
           if (val == 0)
-            error (EXIT_FAILURE, 0,
-                   _("%s: line number must be greater than zero"),
-                   argv[i]);
+            die (EXIT_FAILURE, 0,
+                 _("%s: line number must be greater than zero"), argv[i]);
           if (val < last_val)
             {
               char buf[INT_BUFSIZE_BOUND (uintmax_t)];
-              error (EXIT_FAILURE, 0,
+              die (EXIT_FAILURE, 0,
                _("line number %s is smaller than preceding line number, %s"),
-                     quote (argv[i]), umaxtostr (last_val, buf));
+                   quote (argv[i]), umaxtostr (last_val, buf));
             }
 
           if (val == last_val)
@@ -1287,22 +1282,21 @@ check_format_conv_type (char *format, int flags)
       break;
 
     case 0:
-      error (EXIT_FAILURE, 0, _("missing conversion specifier in suffix"));
-      break;
+      die (EXIT_FAILURE, 0, _("missing conversion specifier in suffix"));
 
     default:
       if (isprint (ch))
-        error (EXIT_FAILURE, 0,
-               _("invalid conversion specifier in suffix: %c"), ch);
+        die (EXIT_FAILURE, 0,
+             _("invalid conversion specifier in suffix: %c"), ch);
       else
-        error (EXIT_FAILURE, 0,
-               _("invalid conversion specifier in suffix: \\%.3o"), ch);
+        die (EXIT_FAILURE, 0,
+             _("invalid conversion specifier in suffix: \\%.3o"), ch);
     }
 
   if (flags & ~ compatible_flags)
-    error (EXIT_FAILURE, 0,
-           _("invalid flags in conversion specification: %%%c%c"),
-           (flags & ~ compatible_flags & FLAG_ALTERNATIVE ? '#' : '\''), ch);
+    die (EXIT_FAILURE, 0,
+         _("invalid flags in conversion specification: %%%c%c"),
+         (flags & ~ compatible_flags & FLAG_ALTERNATIVE ? '#' : '\''), ch);
 }
 
 /* Return the maximum number of bytes that can be generated by
@@ -1317,8 +1311,8 @@ max_out (char *format)
     if (*f == '%' && *++f != '%')
       {
         if (percent)
-          error (EXIT_FAILURE, 0,
-                 _("too many %% conversion specifications in suffix"));
+          die (EXIT_FAILURE, 0,
+               _("too many %% conversion specifications in suffix"));
         percent = true;
         int flags;
         f += get_format_flags (f, &flags);
@@ -1331,8 +1325,8 @@ max_out (char *format)
       }
 
   if (! percent)
-    error (EXIT_FAILURE, 0,
-           _("missing %% conversion specification in suffix"));
+    die (EXIT_FAILURE, 0,
+         _("missing %% conversion specification in suffix"));
 
   int maxlen = snprintf (NULL, 0, format, UINT_MAX);
   if (! (0 <= maxlen && maxlen <= SIZE_MAX))

@@ -1,5 +1,5 @@
 /* paste - merge lines of files
-   Copyright (C) 1997-2016 Free Software Foundation, Inc.
+   Copyright (C) 1997-2017 Free Software Foundation, Inc.
    Copyright (C) 1984 David M. Ihnat
 
    This program is free software: you can redistribute it and/or modify
@@ -13,7 +13,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by David Ihnat.  */
 
@@ -41,6 +41,7 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include "system.h"
+#include "die.h"
 #include "error.h"
 #include "fadvise.h"
 
@@ -159,8 +160,7 @@ static void write_error (void) ATTRIBUTE_NORETURN;
 static void
 write_error (void)
 {
-  error (EXIT_FAILURE, errno, _("write error"));
-  abort ();
+  die (EXIT_FAILURE, errno, _("write error"));
 }
 
 /* Output a single byte, reporting any write errors.  */
@@ -211,7 +211,7 @@ paste_parallel (size_t nfiles, char **fnamptr)
         {
           fileptr[files_open] = fopen (fnamptr[files_open], "r");
           if (fileptr[files_open] == NULL)
-            error (EXIT_FAILURE, errno, "%s", quotef (fnamptr[files_open]));
+            die (EXIT_FAILURE, errno, "%s", quotef (fnamptr[files_open]));
           else if (fileno (fileptr[files_open]) == STDIN_FILENO)
             opened_stdin = true;
           fadvise (fileptr[files_open], FADVISE_SEQUENTIAL);
@@ -219,7 +219,7 @@ paste_parallel (size_t nfiles, char **fnamptr)
     }
 
   if (opened_stdin && have_read_stdin)
-    error (EXIT_FAILURE, 0, _("standard input is closed"));
+    die (EXIT_FAILURE, 0, _("standard input is closed"));
 
   /* Read a line from each file and output it to stdout separated by a
      delimiter, until we go through the loop without successfully
@@ -231,9 +231,8 @@ paste_parallel (size_t nfiles, char **fnamptr)
       bool somedone = false;
       char const *delimptr = delims;
       size_t delims_saved = 0;	/* Number of delims saved in 'delbuf'. */
-      size_t i;
 
-      for (i = 0; i < nfiles && files_open; i++)
+      for (size_t i = 0; i < nfiles && files_open; i++)
         {
           int chr IF_LINT ( = 0);	/* Input character. */
           int err IF_LINT ( = 0);	/* Input errno value.  */
@@ -515,9 +514,9 @@ main (int argc, char **argv)
     {
       /* Don't use the quote() quoting style, because that would double the
          number of displayed backslashes, making the diagnostic look bogus.  */
-      error (EXIT_FAILURE, 0,
-             _("delimiter list ends with an unescaped backslash: %s"),
-             quotearg_n_style_colon (0, c_maybe_quoting_style, delim_arg));
+      die (EXIT_FAILURE, 0,
+           _("delimiter list ends with an unescaped backslash: %s"),
+           quotearg_n_style_colon (0, c_maybe_quoting_style, delim_arg));
     }
 
   bool ok = ((serial_merge ? paste_serial : paste_parallel)
@@ -526,6 +525,6 @@ main (int argc, char **argv)
   free (delims);
 
   if (have_read_stdin && fclose (stdin) == EOF)
-    error (EXIT_FAILURE, errno, "-");
+    die (EXIT_FAILURE, errno, "-");
   return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -1,5 +1,5 @@
 /* unexpand - convert blanks to tabs
-   Copyright (C) 1989-2016 Free Software Foundation, Inc.
+   Copyright (C) 1989-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* By default, convert only maximal strings of initial blanks and tabs
    into tabs.
@@ -39,7 +39,7 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include "system.h"
-#include "error.h"
+#include "die.h"
 #include "xstrndup.h"
 
 #include "expand-common.h"
@@ -90,8 +90,8 @@ Convert blanks in each FILE to tabs, writing to standard output.\n\
   -a, --all        convert all blanks, instead of just initial blanks\n\
       --first-only  convert only leading sequences of blanks (overrides -a)\n\
   -t, --tabs=N     have tabs N characters apart instead of 8 (enables -a)\n\
-  -t, --tabs=LIST  use comma separated LIST of tab positions (enables -a)\n\
 "), stdout);
+      emit_tab_list_info ();
       fputs (HELP_OPTION_DESCRIPTION, stdout);
       fputs (VERSION_OPTION_DESCRIPTION, stdout);
       emit_ancillary_info (PROGRAM_NAME);
@@ -178,7 +178,7 @@ unexpand (void)
                   if (convert)
                     {
                       if (next_tab_column < column)
-                        error (EXIT_FAILURE, 0, _("input line is too long"));
+                        die (EXIT_FAILURE, 0, _("input line is too long"));
 
                       if (c == '\t')
                         {
@@ -223,7 +223,7 @@ unexpand (void)
                 {
                   column++;
                   if (!column)
-                    error (EXIT_FAILURE, 0, _("input line is too long"));
+                    die (EXIT_FAILURE, 0, _("input line is too long"));
                 }
 
               if (pending)
@@ -231,7 +231,7 @@ unexpand (void)
                   if (pending > 1 && one_blank_before_tab_stop)
                     pending_blank[0] = '\t';
                   if (fwrite (pending_blank, 1, pending, stdout) != pending)
-                    error (EXIT_FAILURE, errno, _("write error"));
+                    die (EXIT_FAILURE, errno, _("write error"));
                   pending = 0;
                   one_blank_before_tab_stop = false;
                 }
@@ -247,7 +247,7 @@ unexpand (void)
             }
 
           if (putchar (c) < 0)
-            error (EXIT_FAILURE, errno, _("write error"));
+            die (EXIT_FAILURE, errno, _("write error"));
         }
       while (c != '\n');
     }
@@ -303,7 +303,7 @@ main (int argc, char **argv)
               have_tabval = true;
             }
           if (!DECIMAL_DIGIT_ACCUMULATE (tabval, c - '0', uintmax_t))
-            error (EXIT_FAILURE, 0, _("tab stop value is too large"));
+            die (EXIT_FAILURE, 0, _("tab stop value is too large"));
           break;
         }
     }

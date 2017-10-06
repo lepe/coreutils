@@ -1,7 +1,7 @@
 #!/bin/sh
 # Ensure that cut does not allocate mem for large ranges
 
-# Copyright (C) 2012-2016 Free Software Foundation, Inc.
+# Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,13 +14,13 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ cut
 getlimits_
 
-vm=$(get_min_ulimit_v_ cut -b1 /dev/null) \
+vm=$(get_min_ulimit_v_ returns_ 0 cut -b1 /dev/null) \
   || skip_ "this shell lacks ulimit support"
 
 # sed script to subtract one from the input.

@@ -18,6 +18,7 @@
 /aclocal.m4
 /autom4te.cache
 /build-aux/.gitignore
+/build-aux/ar-lib
 /build-aux/compile
 /build-aux/config.guess
 /build-aux/config.rpath
@@ -43,10 +44,7 @@
 /lib/.dirstamp
 /lib/.gitignore
 /lib/alloca.h
-/lib/arg-nonnull.h
 /lib/arpa/inet.h
-/lib/binary-io.h
-/lib/c++defs.h
 /lib/charset.alias
 /lib/config.h
 /lib/config.hin
@@ -58,6 +56,7 @@
 /lib/float.h
 /lib/fnmatch.h
 /lib/getopt.h
+/lib/getopt-cdefs.h
 /lib/glthread
 /lib/iconv.h
 /lib/iconv_open-aix.h
@@ -68,6 +67,7 @@
 /lib/inttypes.h
 /lib/langinfo.h
 /lib/libcoreutils.a
+/lib/limits.h
 /lib/link-warning.h
 /lib/locale.h
 /lib/math.h
@@ -103,8 +103,7 @@
 /lib/unitypes.h
 /lib/uniwidth
 /lib/uniwidth.h
-/lib/unused-parameter.h
-/lib/warn-on-use.h
+/lib/utime.h
 /lib/wchar.h
 /lib/wctype.h
 /m4/.cvsignore

@@ -1,5 +1,5 @@
 /* GNU's pinky.
-   Copyright (C) 1992-2016 Free Software Foundation, Inc.
+   Copyright (C) 1992-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Created by hacking who.c by Kaveh Ghazi ghazi@caip.rutgers.edu */
 
@@ -25,6 +25,7 @@
 #include "system.h"
 
 #include "canon-host.h"
+#include "die.h"
 #include "error.h"
 #include "hard-locale.h"
 #include "readutmp.h"
@@ -36,8 +37,6 @@
   proper_name ("Joseph Arceneaux"), \
   proper_name ("David MacKenzie"), \
   proper_name ("Kaveh Ghazi")
-
-char *ttyname (int);
 
 /* If true, display the hours:minutes since each user has touched
    the keyboard, or blank if within the last minute, or days followed
@@ -442,9 +441,7 @@ scan_entries (size_t n, const STRUCT_UTMP *utmp_buf,
         {
           if (argc_names)
             {
-              int i;
-
-              for (i = 0; i < argc_names; i++)
+              for (int i = 0; i < argc_names; i++)
                 if (STREQ_LEN (UT_USER (utmp_buf), argv_names[i], UT_USER_SIZE))
                   {
                     print_entry (utmp_buf);
@@ -468,7 +465,7 @@ short_pinky (const char *filename,
   STRUCT_UTMP *utmp_buf = NULL;
 
   if (read_utmp (filename, &n_users, &utmp_buf, 0) != 0)
-    error (EXIT_FAILURE, errno, "%s", quotef (filename));
+    die (EXIT_FAILURE, errno, "%s", quotef (filename));
 
   scan_entries (n_users, utmp_buf, argc_names, argv_names);
 
@@ -478,9 +475,7 @@ short_pinky (const char *filename,
 static void
 long_pinky (const int argc_names, char *const argv_names[])
 {
-  int i;
-
-  for (i = 0; i < argc_names; i++)
+  for (int i = 0; i < argc_names; i++)
     print_long_entry (argv_names[i]);
 }
 

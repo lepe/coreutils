@@ -1,5 +1,5 @@
 /* head -- output first part of file(s)
-   Copyright (C) 1989-2016 Free Software Foundation, Inc.
+   Copyright (C) 1989-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Options: (see usage)
    Reads from standard input if no files are given or when a filename of
@@ -31,12 +31,13 @@
 
 #include "system.h"
 
+#include "die.h"
 #include "error.h"
 #include "full-read.h"
 #include "quote.h"
 #include "safe-read.h"
 #include "stat-size.h"
-#include "xfreopen.h"
+#include "xbinary-io.h"
 #include "xdectoint.h"
 
 /* The official name of this program (e.g., no 'g' prefix).  */
@@ -180,8 +181,8 @@ xwrite_stdout (char const *buffer, size_t n_bytes)
   if (n_bytes > 0 && fwrite (buffer, 1, n_bytes, stdout) < n_bytes)
     {
       clearerr (stdout); /* To avoid redundant close_stdout diagnostic.  */
-      error (EXIT_FAILURE, errno, _("error writing %s"),
-             quoteaf ("standard output"));
+      die (EXIT_FAILURE, errno, _("error writing %s"),
+           quoteaf ("standard output"));
     }
 }
 
@@ -270,8 +271,8 @@ elide_tail_bytes_pipe (const char *filename, int fd, uintmax_t n_elide_0,
   if (SIZE_MAX < n_elide_0 + READ_BUFSIZE)
     {
       char umax_buf[INT_BUFSIZE_BOUND (n_elide_0)];
-      error (EXIT_FAILURE, 0, _("%s: number of bytes is too large"),
-             umaxtostr (n_elide_0, umax_buf));
+      die (EXIT_FAILURE, 0, _("%s: number of bytes is too large"),
+           umaxtostr (n_elide_0, umax_buf));
     }
 
   /* Two cases to consider...
@@ -464,7 +465,7 @@ elide_tail_bytes_file (const char *filename, int fd, uintmax_t n_elide,
                        struct stat const *st, off_t current_pos)
 {
   off_t size = st->st_size;
-  if (presume_input_pipe || size <= ST_BLKSIZE (*st))
+  if (presume_input_pipe || current_pos < 0 || size <= ST_BLKSIZE (*st))
     return elide_tail_bytes_pipe (filename, fd, n_elide, current_pos);
   else
     {
@@ -753,7 +754,7 @@ elide_tail_lines_file (const char *filename, int fd, uintmax_t n_elide,
                        struct stat const *st, off_t current_pos)
 {
   off_t size = st->st_size;
-  if (presume_input_pipe || size <= ST_BLKSIZE (*st))
+  if (presume_input_pipe || current_pos < 0 || size <= ST_BLKSIZE (*st))
     return elide_tail_lines_pipe (filename, fd, n_elide, current_pos);
   else
     {
@@ -877,8 +878,7 @@ head_file (const char *filename, uintmax_t n_units, bool count_lines,
       have_read_stdin = true;
       fd = STDIN_FILENO;
       filename = _("standard input");
-      if (O_BINARY && ! isatty (STDIN_FILENO))
-        xfreopen (NULL, "rb", stdin);
+      xset_binary_mode (STDIN_FILENO, O_BINARY);
     }
   else
     {
@@ -1074,22 +1074,21 @@ main (int argc, char **argv)
   if ( ! count_lines && elide_from_end && OFF_T_MAX < n_units)
     {
       char umax_buf[INT_BUFSIZE_BOUND (n_units)];
-      error (EXIT_FAILURE, EOVERFLOW, "%s: %s", _("invalid number of bytes"),
-             quote (umaxtostr (n_units, umax_buf)));
+      die (EXIT_FAILURE, EOVERFLOW, "%s: %s", _("invalid number of bytes"),
+           quote (umaxtostr (n_units, umax_buf)));
     }
 
   file_list = (optind < argc
                ? (char const *const *) &argv[optind]
                : default_file_list);
 
-  if (O_BINARY && ! isatty (STDOUT_FILENO))
-    xfreopen (NULL, "wb", stdout);
+  xset_binary_mode (STDOUT_FILENO, O_BINARY);
 
   for (i = 0; file_list[i]; ++i)
     ok &= head_file (file_list[i], n_units, count_lines, elide_from_end);
 
   if (have_read_stdin && close (STDIN_FILENO) < 0)
-    error (EXIT_FAILURE, errno, "-");
+    die (EXIT_FAILURE, errno, "-");
 
   return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

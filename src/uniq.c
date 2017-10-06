@@ -1,5 +1,5 @@
 /* uniq -- remove duplicate lines from a sorted file
-   Copyright (C) 1986-2016 Free Software Foundation, Inc.
+   Copyright (C) 1986-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Richard M. Stallman and David MacKenzie. */
 
@@ -24,6 +24,7 @@
 #include "system.h"
 #include "argmatch.h"
 #include "linebuffer.h"
+#include "die.h"
 #include "error.h"
 #include "fadvise.h"
 #include "hard-locale.h"
@@ -249,7 +250,7 @@ size_opt (char const *opt, char const *msgid)
       break;
 
     default:
-      error (EXIT_FAILURE, 0, "%s: %s", opt, _(msgid));
+      die (EXIT_FAILURE, 0, "%s: %s", opt, _(msgid));
     }
 
   return MIN (size, SIZE_MAX);
@@ -334,9 +335,9 @@ check_file (const char *infile, const char *outfile, char delimiter)
   struct linebuffer *thisline, *prevline;
 
   if (! (STREQ (infile, "-") || freopen (infile, "r", stdin)))
-    error (EXIT_FAILURE, errno, "%s", quotef (infile));
+    die (EXIT_FAILURE, errno, "%s", quotef (infile));
   if (! (STREQ (outfile, "-") || freopen (outfile, "w", stdout)))
-    error (EXIT_FAILURE, errno, "%s", quotef (outfile));
+    die (EXIT_FAILURE, errno, "%s", quotef (outfile));
 
   fadvise (stdin, FADVISE_SEQUENTIAL);
 
@@ -433,7 +434,7 @@ check_file (const char *infile, const char *outfile, char delimiter)
           if (match_count == UINTMAX_MAX)
             {
               if (count_occurrences)
-                error (EXIT_FAILURE, 0, _("too many repeated lines"));
+                die (EXIT_FAILURE, 0, _("too many repeated lines"));
               match_count--;
             }
 
@@ -469,7 +470,7 @@ check_file (const char *infile, const char *outfile, char delimiter)
 
  closefiles:
   if (ferror (stdin) || fclose (stdin) != 0)
-    error (EXIT_FAILURE, 0, _("error reading %s"), quoteaf (infile));
+    die (EXIT_FAILURE, 0, _("error reading %s"), quoteaf (infile));
 
   /* stdout is handled via the atexit-invoked close_stdout function.  */
 

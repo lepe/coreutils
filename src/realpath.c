@@ -1,5 +1,5 @@
 /* realpath - print the resolved path
-   Copyright (C) 2011-2016 Free Software Foundation, Inc.
+   Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Pádraig Brady.  */
 
@@ -23,13 +23,14 @@
 
 #include "system.h"
 #include "canonicalize.h"
+#include "die.h"
 #include "error.h"
 #include "relpath.h"
 
 /* The official name of this program (e.g., no 'g' prefix).  */
 #define PROGRAM_NAME "realpath"
 
-#define AUTHORS proper_name_utf8 ("Padraig Brady", "P\303\241draig Brady")
+#define AUTHORS proper_name ("Padraig Brady")
 
 enum
 {
@@ -80,8 +81,8 @@ all but the last component must exist\n\
   -L, --logical                resolve '..' components before symlinks\n\
   -P, --physical               resolve symlinks as encountered (default)\n\
   -q, --quiet                  suppress most error messages\n\
-      --relative-to=FILE       print the resolved path relative to FILE\n\
-      --relative-base=FILE     print absolute paths unless paths below FILE\n\
+      --relative-to=DIR        print the resolved path relative to DIR\n\
+      --relative-base=DIR      print absolute paths unless paths below DIR\n\
   -s, --strip, --no-symlinks   don't expand symlinks\n\
   -z, --zero                   end each output line with NUL, not newline\n\
 \n\
@@ -142,7 +143,7 @@ isdir (const char *path)
 {
   struct stat sb;
   if (stat (path, &sb) != 0)
-    error (EXIT_FAILURE, errno, _("cannot stat %s"), quoteaf (path));
+    die (EXIT_FAILURE, errno, _("cannot stat %s"), quoteaf (path));
   return S_ISDIR (sb.st_mode);
 }
 
@@ -245,9 +246,9 @@ main (int argc, char **argv)
     {
       can_relative_to = realpath_canon (relative_to, can_mode);
       if (!can_relative_to)
-        error (EXIT_FAILURE, errno, "%s", quotef (relative_to));
+        die (EXIT_FAILURE, errno, "%s", quotef (relative_to));
       if (need_dir && !isdir (can_relative_to))
-        error (EXIT_FAILURE, ENOTDIR, "%s", quotef (relative_to));
+        die (EXIT_FAILURE, ENOTDIR, "%s", quotef (relative_to));
     }
   if (relative_base == relative_to)
     can_relative_base = can_relative_to;
@@ -255,9 +256,9 @@ main (int argc, char **argv)
     {
       char *base = realpath_canon (relative_base, can_mode);
       if (!base)
-        error (EXIT_FAILURE, errno, "%s", quotef (relative_base));
+        die (EXIT_FAILURE, errno, "%s", quotef (relative_base));
       if (need_dir && !isdir (base))
-        error (EXIT_FAILURE, ENOTDIR, "%s", quotef (relative_base));
+        die (EXIT_FAILURE, ENOTDIR, "%s", quotef (relative_base));
       /* --relative-to is a no-op if it does not have --relative-base
            as a prefix */
       if (path_prefix (base, can_relative_to))

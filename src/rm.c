@@ -1,5 +1,5 @@
 /* 'rm' file deletion utility for GNU.
-   Copyright (C) 1988-2016 Free Software Foundation, Inc.
+   Copyright (C) 1988-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Initially written by Paul Rubin, David MacKenzie, and Richard Stallman.
    Reworked to use chdir and avoid recursion, and later, rewritten
@@ -26,6 +26,7 @@
 
 #include "system.h"
 #include "argmatch.h"
+#include "die.h"
 #include "error.h"
 #include "remove.h"
 #include "root-dev-ino.h"
@@ -104,9 +105,8 @@ diagnose_leading_hyphen (int argc, char **argv)
 {
   /* OPTIND is unreliable, so iterate through the arguments looking
      for a file name that looks like an option.  */
-  int i;
 
-  for (i = 1; i < argc; i++)
+  for (int i = 1; i < argc; i++)
     {
       char const *arg = argv[i];
       struct stat st;
@@ -287,6 +287,9 @@ main (int argc, char **argv)
           break;
 
         case NO_PRESERVE_ROOT:
+          if (! STREQ (argv[optind - 1], "--no-preserve-root"))
+            die (EXIT_FAILURE, 0,
+                 _("you may not abbreviate the --no-preserve-root option"));
           preserve_root = false;
           break;
 
@@ -326,8 +329,8 @@ main (int argc, char **argv)
       static struct dev_ino dev_ino_buf;
       x.root_dev_ino = get_root_dev_ino (&dev_ino_buf);
       if (x.root_dev_ino == NULL)
-        error (EXIT_FAILURE, errno, _("failed to get attributes of %s"),
-               quoteaf ("/"));
+        die (EXIT_FAILURE, errno, _("failed to get attributes of %s"),
+             quoteaf ("/"));
     }
 
   uintmax_t n_files = argc - optind;

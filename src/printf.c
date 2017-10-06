@@ -1,5 +1,5 @@
 /* printf - format and print data
-   Copyright (C) 1990-2016 Free Software Foundation, Inc.
+   Copyright (C) 1990-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Usage: printf format [argument...]
 
@@ -56,6 +56,7 @@
 
 #include "system.h"
 #include "c-strtod.h"
+#include "die.h"
 #include "error.h"
 #include "quote.h"
 #include "unicodeio.h"
@@ -250,7 +251,7 @@ print_esc (const char *escstart, bool octal_0)
            ++esc_length, ++p)
         esc_value = esc_value * 16 + hextobin (*p);
       if (esc_length == 0)
-        error (EXIT_FAILURE, 0, _("missing hexadecimal number in escape"));
+        die (EXIT_FAILURE, 0, _("missing hexadecimal number in escape"));
       putchar (esc_value);
     }
   else if (isodigit (*p))
@@ -277,7 +278,7 @@ print_esc (const char *escstart, bool octal_0)
            --esc_length, ++p)
         {
           if (! isxdigit (to_uchar (*p)))
-            error (EXIT_FAILURE, 0, _("missing hexadecimal number in escape"));
+            die (EXIT_FAILURE, 0, _("missing hexadecimal number in escape"));
           uni_value = uni_value * 16 + hextobin (*p);
         }
 
@@ -289,8 +290,8 @@ print_esc (const char *escstart, bool octal_0)
       if ((uni_value <= 0x9f
            && uni_value != 0x24 && uni_value != 0x40 && uni_value != 0x60)
           || (uni_value >= 0xd800 && uni_value <= 0xdfff))
-        error (EXIT_FAILURE, 0, _("invalid universal character name \\%c%0*x"),
-               esc_char, (esc_char == 'u' ? 4 : 8), uni_value);
+        die (EXIT_FAILURE, 0, _("invalid universal character name \\%c%0*x"),
+             esc_char, (esc_char == 'u' ? 4 : 8), uni_value);
 
       print_unicode_char (stdout, uni_value, 0);
     }
@@ -562,8 +563,8 @@ print_formatted (const char *format, int argc, char **argv)
                   if (INT_MIN <= width && width <= INT_MAX)
                     field_width = width;
                   else
-                    error (EXIT_FAILURE, 0, _("invalid field width: %s"),
-                           quote (*argv));
+                    die (EXIT_FAILURE, 0, _("invalid field width: %s"),
+                         quote (*argv));
                   ++argv;
                   --argc;
                 }
@@ -597,8 +598,8 @@ print_formatted (const char *format, int argc, char **argv)
                           precision = -1;
                         }
                       else if (INT_MAX < prec)
-                        error (EXIT_FAILURE, 0, _("invalid precision: %s"),
-                               quote (*argv));
+                        die (EXIT_FAILURE, 0, _("invalid precision: %s"),
+                             quote (*argv));
                       else
                         precision = prec;
                       ++argv;
@@ -623,9 +624,9 @@ print_formatted (const char *format, int argc, char **argv)
           {
             unsigned char conversion = *f;
             if (! ok[conversion])
-              error (EXIT_FAILURE, 0,
-                     _("%.*s: invalid conversion specification"),
-                     (int) (f + 1 - direc_start), direc_start);
+              die (EXIT_FAILURE, 0,
+                   _("%.*s: invalid conversion specification"),
+                   (int) (f + 1 - direc_start), direc_start);
           }
 
           print_direc (direc_start, direc_length, *f,

@@ -1,5 +1,5 @@
 /* Base64 encode/decode strings or files.
-   Copyright (C) 2004-2016 Free Software Foundation, Inc.
+   Copyright (C) 2004-2017 Free Software Foundation, Inc.
 
    This file is part of Base64.
 
@@ -14,7 +14,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 
 /* Written by Simon Josefsson <simon@josefsson.org>.  */
 
@@ -25,12 +25,13 @@
 #include <sys/types.h>
 
 #include "system.h"
+#include "die.h"
 #include "error.h"
 #include "fadvise.h"
 #include "quote.h"
 #include "xstrtol.h"
 #include "xdectoint.h"
-#include "xfreopen.h"
+#include "xbinary-io.h"
 
 #define AUTHORS proper_name ("Simon Josefsson")
 
@@ -135,7 +136,7 @@ wrap_write (const char *buffer, size_t len,
     {
       /* Simple write. */
       if (fwrite (buffer, 1, len, stdout) < len)
-        error (EXIT_FAILURE, errno, _("write error"));
+        die (EXIT_FAILURE, errno, _("write error"));
     }
   else
     for (written = 0; written < len;)
@@ -147,13 +148,13 @@ wrap_write (const char *buffer, size_t len,
         if (to_write == 0)
           {
             if (fputc ('\n', out) == EOF)
-              error (EXIT_FAILURE, errno, _("write error"));
+              die (EXIT_FAILURE, errno, _("write error"));
             *current_column = 0;
           }
         else
           {
             if (fwrite (buffer + written, 1, to_write, stdout) < to_write)
-              error (EXIT_FAILURE, errno, _("write error"));
+              die (EXIT_FAILURE, errno, _("write error"));
             *current_column += to_write;
             written += to_write;
           }
@@ -194,10 +195,10 @@ do_encode (FILE *in, FILE *out, uintmax_t wrap_column)
 
   /* When wrapping, terminate last line. */
   if (wrap_column && current_column > 0 && fputc ('\n', out) == EOF)
-    error (EXIT_FAILURE, errno, _("write error"));
+    die (EXIT_FAILURE, errno, _("write error"));
 
   if (ferror (in))
-    error (EXIT_FAILURE, errno, _("read error"));
+    die (EXIT_FAILURE, errno, _("read error"));
 }
 
 static void
@@ -223,18 +224,19 @@ do_decode (FILE *in, FILE *out, bool ignore_garbage)
 
           if (ignore_garbage)
             {
-              size_t i;
-              for (i = 0; n > 0 && i < n;)
-                if (isbase (inbuf[sum + i]) || inbuf[sum + i] == '=')
-                  i++;
-                else
-                  memmove (inbuf + sum + i, inbuf + sum + i + 1, --n - i);
+              for (size_t i = 0; n > 0 && i < n;)
+                {
+                  if (isbase (inbuf[sum + i]) || inbuf[sum + i] == '=')
+                    i++;
+                  else
+                    memmove (inbuf + sum + i, inbuf + sum + i + 1, --n - i);
+                }
             }
 
           sum += n;
 
           if (ferror (in))
-            error (EXIT_FAILURE, errno, _("read error"));
+            die (EXIT_FAILURE, errno, _("read error"));
         }
       while (sum < BASE_LENGTH (DEC_BLOCKSIZE) && !feof (in));
 
@@ -250,10 +252,10 @@ do_decode (FILE *in, FILE *out, bool ignore_garbage)
           ok = base_decode_ctx (&ctx, inbuf, (k == 0 ? sum : 0), outbuf, &n);
 
           if (fwrite (outbuf, 1, n, out) < n)
-            error (EXIT_FAILURE, errno, _("write error"));
+            die (EXIT_FAILURE, errno, _("write error"));
 
           if (!ok)
-            error (EXIT_FAILURE, 0, _("invalid input"));
+            die (EXIT_FAILURE, 0, _("invalid input"));
         }
     }
   while (!feof (in));
@@ -319,15 +321,14 @@ main (int argc, char **argv)
 
   if (STREQ (infile, "-"))
     {
-      if (O_BINARY)
-        xfreopen (NULL, "rb", stdin);
+      xset_binary_mode (STDIN_FILENO, O_BINARY);
       input_fh = stdin;
     }
   else
     {
       input_fh = fopen (infile, "rb");
       if (input_fh == NULL)
-        error (EXIT_FAILURE, errno, "%s", quotef (infile));
+        die (EXIT_FAILURE, errno, "%s", quotef (infile));
     }
 
   fadvise (input_fh, FADVISE_SEQUENTIAL);
@@ -340,9 +341,9 @@ main (int argc, char **argv)
   if (fclose (input_fh) == EOF)
     {
       if (STREQ (infile, "-"))
-        error (EXIT_FAILURE, errno, _("closing standard input"));
+        die (EXIT_FAILURE, errno, _("closing standard input"));
       else
-        error (EXIT_FAILURE, errno, "%s", quotef (infile));
+        die (EXIT_FAILURE, errno, "%s", quotef (infile));
     }
 
   return EXIT_SUCCESS;

@@ -1,5 +1,5 @@
 /* seq - print sequence of numbers to standard output.
-   Copyright (C) 1994-2016 Free Software Foundation, Inc.
+   Copyright (C) 1994-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Ulrich Drepper.  */
 
@@ -22,6 +22,7 @@
 #include <sys/types.h>
 
 #include "system.h"
+#include "die.h"
 #include "c-strtod.h"
 #include "error.h"
 #include "quote.h"
@@ -235,8 +236,8 @@ long_double_format (char const *fmt, struct layout *layout)
   for (i = 0; ! (fmt[i] == '%' && fmt[i + 1] != '%'); i += (fmt[i] == '%') + 1)
     {
       if (!fmt[i])
-        error (EXIT_FAILURE, 0,
-               _("format %s has no %% directive"), quote (fmt));
+        die (EXIT_FAILURE, 0,
+             _("format %s has no %% directive"), quote (fmt));
       prefix_len++;
     }
 
@@ -253,15 +254,15 @@ long_double_format (char const *fmt, struct layout *layout)
   has_L = (fmt[i] == 'L');
   i += has_L;
   if (fmt[i] == '\0')
-    error (EXIT_FAILURE, 0, _("format %s ends in %%"), quote (fmt));
+    die (EXIT_FAILURE, 0, _("format %s ends in %%"), quote (fmt));
   if (! strchr ("efgaEFGA", fmt[i]))
-    error (EXIT_FAILURE, 0,
-           _("format %s has unknown %%%c directive"), quote (fmt), fmt[i]);
+    die (EXIT_FAILURE, 0,
+         _("format %s has unknown %%%c directive"), quote (fmt), fmt[i]);
 
   for (i++; ; i += (fmt[i] == '%') + 1)
     if (fmt[i] == '%' && fmt[i + 1] != '%')
-      error (EXIT_FAILURE, 0, _("format %s has too many %% directives"),
-             quote (fmt));
+      die (EXIT_FAILURE, 0, _("format %s has too many %% directives"),
+           quote (fmt));
     else if (fmt[i])
       suffix_len++;
     else
@@ -282,9 +283,8 @@ static void ATTRIBUTE_NORETURN
 io_error (void)
 {
   /* FIXME: consider option to silently ignore errno=EPIPE */
-  error (0, errno, _("standard output"));
   clearerr (stdout);
-  exit (EXIT_FAILURE);
+  die (EXIT_FAILURE, errno, _("write error"));
 }
 
 /* Actually print the sequence of numbers in the specified range, with the

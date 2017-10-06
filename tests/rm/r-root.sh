@@ -1,7 +1,7 @@
 #!/bin/sh
 # Try to remove '/' recursively.
 
-# Copyright (C) 2013-2016 Free Software Foundation, Inc.
+# Copyright (C) 2013-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ rm
@@ -209,6 +209,15 @@ for opts in           \
   # Do nothing more if this test failed.
   test $fail = 1 && { cat out; cat err; Exit $fail; }
 done
+
+#-------------------------------------------------------------------------------
+# Exercise with --no-preserve to ensure shortened equivalent is not allowed.
+cat <<EOD > exp_opt || framework_failure_
+rm: you may not abbreviate the --no-preserve-root option
+EOD
+returns_ 1 exercise_rm_r_root --no-preserve / || fail=1
+compare exp_opt err || fail=1
+test -f x && fail=1
 
 #-------------------------------------------------------------------------------
 # Exercise "rm -r file1 / file2".

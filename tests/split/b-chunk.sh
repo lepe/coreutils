@@ -1,7 +1,7 @@
 #!/bin/sh
 # test splitting into 3 chunks
 
-# Copyright (C) 2010-2016 Free Software Foundation, Inc.
+# Copyright (C) 2010-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ split
@@ -25,9 +25,14 @@ split -n 10 /dev/null || fail=1
 test "$(stat -c %s x* | uniq -c | sed 's/^ *//; s/ /x/')" = "10x0" || fail=1
 rm -f x??
 
+# When extracting K of N where N > file size
+# no data is extracted, and no files are written
+split -n 2/3 /dev/null || fail=1
+returns_ 1 stat x?? 2>/dev/null || fail=1
+
 # Ensure --elide-empty-files is honored
 split -e -n 10 /dev/null || fail=1
-stat x?? 2>/dev/null && fail=1
+returns_ 1 stat x?? 2>/dev/null || fail=1
 
 printf '1\n2\n3\n4\n5\n' > input || framework_failure_
 

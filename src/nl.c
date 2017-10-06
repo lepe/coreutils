@@ -1,5 +1,5 @@
 /* nl -- number lines of files
-   Copyright (C) 1989-2016 Free Software Foundation, Inc.
+   Copyright (C) 1989-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Scott Bartram (nancy!scott@uunet.uu.net)
    Revised by David MacKenzie (djm@gnu.ai.mit.edu) */
@@ -27,6 +27,7 @@
 
 #include <regex.h>
 
+#include "die.h"
 #include "error.h"
 #include "fadvise.h"
 #include "linebuffer.h"
@@ -255,7 +256,7 @@ build_type_arg (char const **typep,
         RE_SYNTAX_POSIX_BASIC & ~RE_CONTEXT_INVALID_DUP & ~RE_NO_EMPTY_RANGES;
       errmsg = re_compile_pattern (optarg, strlen (optarg), regexp);
       if (errmsg)
-        error (EXIT_FAILURE, 0, "%s", (errmsg));
+        die (EXIT_FAILURE, 0, "%s", (errmsg));
       break;
     default:
       rval = false;
@@ -275,7 +276,7 @@ print_lineno (void)
 
   next_line_no = line_no + page_incr;
   if (next_line_no < line_no)
-    error (EXIT_FAILURE, 0, _("line number overflow"));
+    die (EXIT_FAILURE, 0, _("line number overflow"));
   line_no = next_line_no;
 }
 
@@ -352,7 +353,7 @@ proc_text (void)
                          0, line_buf.length - 1, NULL))
         {
         case -2:
-          error (EXIT_FAILURE, errno, _("error in regular expression search"));
+          die (EXIT_FAILURE, errno, _("error in regular expression search"));
 
         case -1:
           fputs (print_no_line_fmt, stdout);
@@ -588,7 +589,7 @@ main (int argc, char **argv)
       ok &= nl_file (argv[optind]);
 
   if (have_read_stdin && fclose (stdin) == EOF)
-    error (EXIT_FAILURE, errno, "-");
+    die (EXIT_FAILURE, errno, "-");
 
   return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }

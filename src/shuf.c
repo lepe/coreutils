@@ -1,6 +1,6 @@
 /* Shuffle lines of text.
 
-   Copyright (C) 2006-2016 Free Software Foundation, Inc.
+   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
    Written by Paul Eggert.  */
 
@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include "system.h"
 
+#include "die.h"
 #include "error.h"
 #include "fadvise.h"
 #include "getopt.h"
@@ -222,14 +223,14 @@ read_input_reservoir_sampling (FILE *in, char eolbyte, size_t k,
       while (readlinebuffer_delim (line, in, eolbyte) != NULL && n_lines++);
 
       if (! n_lines)
-        error (EXIT_FAILURE, EOVERFLOW, _("too many input lines"));
+        die (EXIT_FAILURE, EOVERFLOW, _("too many input lines"));
 
       freebuffer (&dummy);
     }
 
   /* no more input lines, or an input error.  */
   if (ferror (in))
-    error (EXIT_FAILURE, errno, _("read error"));
+    die (EXIT_FAILURE, errno, _("read error"));
 
   *out_rsrv = rsrv;
   return MIN (k, n_lines);
@@ -239,9 +240,7 @@ static int
 write_permuted_output_reservoir (size_t n_lines, struct linebuffer *lines,
                                  size_t const *permutation)
 {
-  size_t i;
-
-  for (i = 0; i < n_lines; i++)
+  for (size_t i = 0; i < n_lines; i++)
     {
       const struct linebuffer *p = &lines[permutation[i]];
       if (fwrite (p->buffer, sizeof (char), p->length, stdout) != p->length)
@@ -265,7 +264,6 @@ read_input (FILE *in, char eolbyte, char ***pline)
   size_t used;
   char *lim;
   char **line;
-  size_t i;
   size_t n_lines;
 
   /* TODO: We should limit the amount of data read here,
@@ -278,7 +276,7 @@ read_input (FILE *in, char eolbyte, char ***pline)
      avoiding the reservoir CPU overhead when reading < RESERVOIR_MIN_INPUT
      from a pipe, and allow us to dispense with the input_size() function.  */
   if (!(buf = fread_file (in, &used)))
-    error (EXIT_FAILURE, errno, _("read error"));
+    die (EXIT_FAILURE, errno, _("read error"));
 
   if (used && buf[used - 1] != eolbyte)
     buf[used++] = eolbyte;
@@ -292,7 +290,7 @@ read_input (FILE *in, char eolbyte, char ***pline)
   *pline = line = xnmalloc (n_lines + 1, sizeof *line);
 
   line[0] = p = buf;
-  for (i = 1; i <= n_lines; i++)
+  for (size_t i = 1; i <= n_lines; i++)
     line[i] = p = next_line (p, eolbyte, lim - p);
 
   return n_lines;
@@ -306,9 +304,7 @@ static int
 write_permuted_lines (size_t n_lines, char *const *line,
                       size_t const *permutation)
 {
-  size_t i;
-
-  for (i = 0; i < n_lines; i++)
+  for (size_t i = 0; i < n_lines; i++)
     {
       char *const *p = line + permutation[i];
       size_t len = p[1] - p[0];
@@ -325,9 +321,7 @@ static int
 write_permuted_numbers (size_t n_lines, size_t lo_input,
                         size_t const *permutation, char eolbyte)
 {
-  size_t i;
-
-  for (i = 0; i < n_lines; i++)
+  for (size_t i = 0; i < n_lines; i++)
     {
       unsigned long int n = lo_input + permutation[i];
       if (printf ("%lu%c", n, eolbyte) < 0)
@@ -343,10 +337,9 @@ static int
 write_random_numbers (struct randint_source *s, size_t count,
                       size_t lo_input, size_t hi_input, char eolbyte)
 {
-  size_t i;
   const randint range = hi_input - lo_input + 1;
 
-  for (i = 0; i < count; i++)
+  for (size_t i = 0; i < count; i++)
     {
       unsigned long int j = lo_input + randint_choose (s, range);
       if (printf ("%lu%c", j, eolbyte) < 0)
@@ -363,9 +356,7 @@ static int
 write_random_lines (struct randint_source *s, size_t count,
                     char *const *lines, size_t n_lines)
 {
-  size_t i;
-
-  for (i = 0; i < count; i++)
+  for (size_t i = 0; i < count; i++)
     {
       const randint j = randint_choose (s, n_lines);
       char *const *p = lines + j;
@@ -424,7 +415,7 @@ main (int argc, char **argv)
           bool invalid = !p;
 
           if (input_range)
-            error (EXIT_FAILURE, 0, _("multiple -i options specified"));
+            die (EXIT_FAILURE, 0, _("multiple -i options specified"));
           input_range = true;
 
           if (p)
@@ -442,8 +433,8 @@ main (int argc, char **argv)
           n_lines = hi_input - lo_input + 1;
           invalid |= ((lo_input <= hi_input) == (n_lines == 0));
           if (invalid)
-            error (EXIT_FAILURE, errno, "%s: %s", _("invalid input range"),
-                   quote (optarg));
+            die (EXIT_FAILURE, errno, "%s: %s", _("invalid input range"),
+                 quote (optarg));
         }
         break;
 
@@ -455,20 +446,20 @@ main (int argc, char **argv)
           if (e == LONGINT_OK)
             head_lines = MIN (head_lines, argval);
           else if (e != LONGINT_OVERFLOW)
-            error (EXIT_FAILURE, 0, _("invalid line count: %s"),
-                   quote (optarg));
+            die (EXIT_FAILURE, 0, _("invalid line count: %s"),
+                 quote (optarg));
         }
         break;
 
       case 'o':
         if (outfile && !STREQ (outfile, optarg))
-          error (EXIT_FAILURE, 0, _("multiple output files specified"));
+          die (EXIT_FAILURE, 0, _("multiple output files specified"));
         outfile = optarg;
         break;
 
       case RANDOM_SOURCE_OPTION:
         if (random_source && !STREQ (random_source, optarg))
-          error (EXIT_FAILURE, 0, _("multiple random sources specified"));
+          die (EXIT_FAILURE, 0, _("multiple random sources specified"));
         random_source = optarg;
         break;
 
@@ -519,7 +510,7 @@ main (int argc, char **argv)
       if (n_operands == 1)
         if (! (STREQ (operand[0], "-") || ! head_lines
                || freopen (operand[0], "r", stdin)))
-          error (EXIT_FAILURE, errno, "%s", quotef (operand[0]));
+          die (EXIT_FAILURE, errno, "%s", quotef (operand[0]));
 
       fadvise (stdin, FADVISE_SEQUENTIAL);
 
@@ -544,7 +535,7 @@ main (int argc, char **argv)
                                      ? SIZE_MAX
                                      : randperm_bound (head_lines, n_lines)));
   if (! randint_source)
-    error (EXIT_FAILURE, errno, "%s", quotef (random_source));
+    die (EXIT_FAILURE, errno, "%s", quotef (random_source));
 
   if (use_reservoir_sampling)
     {
@@ -560,13 +551,13 @@ main (int argc, char **argv)
      stdin.  */
   if (! (echo || input_range)
       && (fclose (stdin) != 0))
-    error (EXIT_FAILURE, errno, _("read error"));
+    die (EXIT_FAILURE, errno, _("read error"));
 
   if (!repeat)
     permutation = randperm_new (randint_source, head_lines, n_lines);
 
   if (outfile && ! freopen (outfile, "w", stdout))
-    error (EXIT_FAILURE, errno, "%s", quotef (outfile));
+    die (EXIT_FAILURE, errno, "%s", quotef (outfile));
 
   /* Generate output according to requested method */
   if (repeat)
@@ -576,7 +567,7 @@ main (int argc, char **argv)
       else
         {
           if (n_lines == 0)
-            error (EXIT_FAILURE, 0, _("no lines to repeat"));
+            die (EXIT_FAILURE, 0, _("no lines to repeat"));
           if (input_range)
             i = write_random_numbers (randint_source, head_lines,
                                       lo_input, hi_input, eolbyte);
@@ -596,7 +587,7 @@ main (int argc, char **argv)
     }
 
   if (i != 0)
-    error (EXIT_FAILURE, errno, _("write error"));
+    die (EXIT_FAILURE, errno, _("write error"));
 
 #ifdef lint
   free (permutation);

@@ -1,5 +1,5 @@
 /* touch -- change modification and access times of files
-   Copyright (C) 1987-2016 Free Software Foundation, Inc.
+   Copyright (C) 1987-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Paul Rubin, Arnold Robbins, Jim Kingdon, David MacKenzie,
    and Randy Smith. */
@@ -25,6 +25,7 @@
 
 #include "system.h"
 #include "argmatch.h"
+#include "die.h"
 #include "error.h"
 #include "fd-reopen.h"
 #include "parse-datetime.h"
@@ -112,7 +113,7 @@ get_reldate (struct timespec *result,
              char const *flex_date, struct timespec const *now)
 {
   if (! parse_datetime (result, flex_date, now))
-    error (EXIT_FAILURE, 0, _("invalid date format %s"), quote (flex_date));
+    die (EXIT_FAILURE, 0, _("invalid date format %s"), quote (flex_date));
 }
 
 /* Update the time of file FILE according to the options given.
@@ -306,8 +307,8 @@ main (int argc, char **argv)
         case 't':
           if (! posixtime (&newtime[0].tv_sec, optarg,
                            PDS_LEADING_YEAR | PDS_CENTURY | PDS_SECONDS))
-            error (EXIT_FAILURE, 0, _("invalid date format %s"),
-                   quote (optarg));
+            die (EXIT_FAILURE, 0, _("invalid date format %s"),
+                 quote (optarg));
           newtime[0].tv_nsec = 0;
           newtime[1] = newtime[0];
           date_set = true;
@@ -343,8 +344,8 @@ main (int argc, char **argv)
          might be an object-like macro.  */
       if (no_dereference ? lstat (ref_file, &ref_stats)
           : stat (ref_file, &ref_stats))
-        error (EXIT_FAILURE, errno,
-               _("failed to get attributes of %s"), quoteaf (ref_file));
+        die (EXIT_FAILURE, errno,
+             _("failed to get attributes of %s"), quoteaf (ref_file));
       newtime[0] = get_stat_atime (&ref_stats);
       newtime[1] = get_stat_mtime (&ref_stats);
       date_set = true;
@@ -373,8 +374,8 @@ main (int argc, char **argv)
               && newtime[0].tv_sec == now.tv_sec
               && newtime[0].tv_nsec == now.tv_nsec)
             {
-              /* Check that it really was "-d now", and not a time
-                 stamp that just happens to be the current time.  */
+              /* Check that it really was "-d now", and not a timestamp
+                 that just happens to be the current time.  */
               struct timespec notnow, notnow1;
               notnow.tv_sec = now.tv_sec ^ 1;
               notnow.tv_nsec = now.tv_nsec;

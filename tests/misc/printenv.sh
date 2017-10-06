@@ -1,7 +1,7 @@
 #!/bin/sh
 # Verify behavior of printenv.
 
-# Copyright (C) 2009-2016 Free Software Foundation, Inc.
+# Copyright (C) 2009-2017 Free Software Foundation, Inc.
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 . "${srcdir=.}/tests/init.sh"; path_prepend_ ./src
 print_ver_ printenv
@@ -39,8 +39,7 @@ if env -- printenv | grep '^ENV_TEST' >/dev/null ; then
 fi
 
 # Printing a single variable's value.
-env -- printenv ENV_TEST > out
-test $? = 1 || fail=1
+returns_ 1 env -- printenv ENV_TEST > out || fail=1
 compare /dev/null out || fail=1
 echo a > exp || framework_failure_
 ENV_TEST=a env -- printenv ENV_TEST > out || fail=1
@@ -60,10 +59,10 @@ EOF
 compare exp out || fail=1
 
 # Exit status reflects missing variable, but remaining arguments processed.
-ENV_TEST1=a env -- printenv ENV_TEST2 ENV_TEST1 > out
-test $? = 1 || fail=1
-ENV_TEST1=a env -- printenv ENV_TEST1 ENV_TEST2 >> out
-test $? = 1 || fail=1
+export ENV_TEST1=a
+returns_ 1 env -- printenv ENV_TEST2 ENV_TEST1 > out || fail=1
+returns_ 1 env -- printenv ENV_TEST1 ENV_TEST2 >> out || fail=1
+unset ENV_TEST1
 cat <<EOF > exp || framework_failure_
 a
 a
@@ -78,8 +77,7 @@ compare exp out || fail=1
 
 # Silently reject invalid env-var names.
 # Bug present through coreutils 8.0.
-env a=b=c printenv a=b > out
-test $? = 1 || fail=1
+returns_ 1 env a=b=c printenv a=b > out || fail=1
 compare /dev/null out || fail=1
 
 Exit $fail

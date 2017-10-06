@@ -1,5 +1,5 @@
 /* sync - update the super block
-   Copyright (C) 1994-2016 Free Software Foundation, Inc.
+   Copyright (C) 1994-2017 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Jim Meyering */
 
@@ -23,6 +23,7 @@
 #include <sys/types.h>
 
 #include "system.h"
+#include "die.h"
 #include "error.h"
 
 /* The official name of this program (e.g., no 'g' prefix).  */
@@ -208,12 +209,12 @@ main (int argc, char **argv)
 
   if (arg_data && arg_file_system)
     {
-      error (EXIT_FAILURE, 0,
-             _("cannot specify both --data and --file-system"));
+      die (EXIT_FAILURE, 0,
+           _("cannot specify both --data and --file-system"));
     }
 
   if (!args_specified && arg_data)
-    error (EXIT_FAILURE, 0, _("--data needs at least one argument"));
+    die (EXIT_FAILURE, 0, _("--data needs at least one argument"));
 
   if (! args_specified || (arg_file_system && ! HAVE_SYNCFS))
     mode = MODE_SYNC;
